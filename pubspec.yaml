@@ -73,6 +73,7 @@ flutter:
     - lib/assets/animations/hi.json
     - lib/assets/animations/goshh.json
     - lib/assets/animations/pamkin.json
+    - .env
 
 
   # To add assets to your application, add an assets section, like this:

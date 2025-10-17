@@ -16,15 +16,15 @@ final baseUrlProvider = Provider<String>((ref) {
       : 'http://10.0.2.2:3002/api/registros/';
 });
 
-/// Proveedor de Dio centralizado para toda la app
 final dioProvider = Provider<Dio>((ref) {
   final baseUrl = ref.watch(baseUrlProvider);
+  final timeoutSeconds = int.tryParse(dotenv.env['TIMEOUT'] ?? '') ?? 20;
 
   return Dio(BaseOptions(
     baseUrl: baseUrl,
-    connectTimeout: Duration(seconds: Env.timeout),
-    receiveTimeout: Duration(seconds: Env.timeout),
-    sendTimeout: Duration(seconds: Env.timeout),
+    connectTimeout: Duration(seconds: timeoutSeconds),
+    receiveTimeout: Duration(seconds: timeoutSeconds),
+    sendTimeout: Duration(seconds: timeoutSeconds),
     responseType: ResponseType.json,
     headers: {
       'Content-Type': 'application/json',

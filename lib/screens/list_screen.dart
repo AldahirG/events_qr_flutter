@@ -175,7 +175,8 @@ class _RegistroTile extends ConsumerWidget {
     final nombre = (registro.nombreCompleto ?? registro.nombre ?? '').toString();
     final telefono = (registro.telefono ?? '').toString();
     final programa = (registro.programa ?? '').toString();
-    final folio = (registro.folio ?? registro.codigo ?? id).toString();
+    final folio = id.padLeft(3, '0');
+
 
     DateTime? fecha;
     try {

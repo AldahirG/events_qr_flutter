@@ -1,3 +1,5 @@
+// lib/models/registro.dart
+
 class Registro {
   final int id;
   final String? nombre;
@@ -8,7 +10,7 @@ class Registro {
   final String? artista;
   final String? disfraz;
   final String? varFB;
-  final DateTime fechaRegistro;   // no-null en el modelo
+  final DateTime fechaRegistro; // no-null en el modelo
   final String? promotor;
   final String? invito;
   final bool? asistio;
@@ -33,13 +35,23 @@ class Registro {
     this.comoEnteroEvento,
   });
 
+  /// ✅ Getter para usar en list_screen o UI sin errores
+  String get nombreCompleto => nombre?.trim().isNotEmpty == true
+      ? nombre!.trim()
+      : '(Sin nombre)';
+
+  String get folio => id.toString().padLeft(3, '0');
+
+
+  // ---------------------- UTILIDADES INTERNAS ----------------------
+
   static bool? _toBool(dynamic v) {
     if (v == null) return null;
     if (v is bool) return v;
     if (v is num) return v != 0;
     final s = v.toString().trim().toLowerCase();
-    if (s == '1' || s == 'true' || s == 'sí' || s == 'si' || s == 'yes') return true;
-    if (s == '0' || s == 'false' || s == 'no') return false;
+    if (['1', 'true', 'sí', 'si', 'yes'].contains(s)) return true;
+    if (['0', 'false', 'no'].contains(s)) return false;
     return null;
   }
 
@@ -49,7 +61,7 @@ class Registro {
       j['fecha_registro'],
       j['createdAt'],
       j['created_at'],
-      j['fecha'], // por si algún backend viejo usa esta
+      j['fecha'], // compatibilidad con versiones anteriores
       j['timestamp'],
     ];
 
@@ -57,7 +69,7 @@ class Registro {
       if (v == null) continue;
       if (v is DateTime) return v;
       if (v is int) {
-        // milisegundos o segundos -> intenta ambos
+        // soporta timestamps en segundos o milisegundos
         final ms = v > 2000000000 ? v : v * 1000;
         return DateTime.fromMillisecondsSinceEpoch(ms);
       }
@@ -66,12 +78,13 @@ class Registro {
         if (d != null) return d;
       }
     }
-    // fallback seguro para evitar crasheo: epoch 0
+    // fallback seguro
     return DateTime.fromMillisecondsSinceEpoch(0);
   }
 
+  // ---------------------- CONSTRUCTOR FROM JSON ----------------------
+
   factory Registro.fromJson(Map<String, dynamic> json) {
-    // helper para id
     int _toInt(dynamic v) {
       if (v == null) return 0;
       if (v is int) return v;
@@ -84,8 +97,9 @@ class Registro {
       edad: json['edad'] as String?,
       telefono: json['telefono'] as String?,
       correo: json['correo'] as String?,
-      escuelaProcedencia:
-          (json['escuelaProcedencia'] ?? json['escuela_procedencia'] ?? json['escProc']) as String?,
+      escuelaProcedencia: (json['escuelaProcedencia'] ??
+              json['escuela_procedencia'] ??
+              json['escProc']) as String?,
       artista: json['artista'] as String?,
       disfraz: json['disfraz'] as String?,
       varFB: (json['varFB'] ?? json['var_fb']) as String?,
@@ -94,8 +108,31 @@ class Registro {
       invito: json['invito'] as String?,
       asistio: _toBool(json['asistio']),
       programa: json['programa'] as String?,
-      comoEnteroEvento:
-          (json['comoEnteroEvento'] ?? json['como_entero_evento'] ?? json['Nombre_invito']) as String?,
+      comoEnteroEvento: (json['comoEnteroEvento'] ??
+              json['como_entero_evento'] ??
+              json['Nombre_invito']) as String?,
     );
+  }
+
+  // ---------------------- MÉTODOS AUXILIARES ----------------------
+
+  Map<String, dynamic> toJson() {
+    return {
+      'idhalloweenfest_registro': id,
+      'nombre': nombre,
+      'edad': edad,
+      'telefono': telefono,
+      'correo': correo,
+      'escuelaProcedencia': escuelaProcedencia,
+      'artista': artista,
+      'disfraz': disfraz,
+      'varFB': varFB,
+      'fechaRegistro': fechaRegistro.toIso8601String(),
+      'promotor': promotor,
+      'invito': invito,
+      'asistio': asistio == true ? 1 : 0,
+      'programa': programa,
+      'comoEnteroEvento': comoEnteroEvento,
+    };
   }
 }

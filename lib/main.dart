@@ -1,47 +1,38 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:intl/date_symbol_data_local.dart';
+
+
 import 'models/event.dart';
 import 'app_router.dart';
 
 Future<void> main() async {
+  // 1️⃣ Asegura que Flutter esté inicializado antes de usar plugins
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1️⃣ Cargar .env
+  // 2️⃣ Cargar .env de forma segura
   try {
-  await dotenv.load(fileName: ".env").timeout(const Duration(seconds: 5));
-  debugPrint('✅ .env cargado. BASE_URL=${dotenv.env['BASE_URL']}');
-
+    await dotenv.load(fileName: ".env");
+    debugPrint('✅ .env cargado. BASE_URL=${dotenv.env['BASE_URL']}');
   } catch (e, st) {
-    debugPrint('No se pudo cargar .env (continuando sin él): $e');
+    debugPrint('❌ Error al cargar .env: $e');
     debugPrintStack(stackTrace: st);
   }
 
-  // 2️⃣ Inicializar Hive
+  // Inicializar localización
+  await initializeDateFormatting('es', null); // 👈 importante
+  // 3️⃣ Inicializar Hive y abrir cajas
   await Hive.initFlutter();
   if (!Hive.isAdapterRegistered(0)) {
     Hive.registerAdapter(EventAdapter());
   }
+  await Hive.openBox<Event>('events');
+  await Hive.openBox('settings');
 
-  // 3️⃣ Abrir boxes
-  try {
-    await Hive.openBox<Event>('events');
-    await Hive.openBox('settings');
-  } catch (e, st) {
-    debugPrint('Error abriendo boxes de Hive: $e');
-    debugPrintStack(stackTrace: st);
-  }
-
-  // 4️⃣ Ejecutar app en zona segura
-  runZonedGuarded(
-    () => runApp(const ProviderScope(child: MyApp())),
-    (error, stack) {
-      debugPrint('Error no capturado en la app: $error');
-      debugPrintStack(stackTrace: stack);
-    },
-  );
+  // 4️⃣ Ejecutar la app
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {
