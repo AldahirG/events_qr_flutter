@@ -1,24 +1,12 @@
-// lib/screens/show_info_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../providers/evento_provider.dart';
-
-// Ajusta tu BASE_URL real aquí
-const String BASE_URL = 'https://tu-api-aqui.com';
-
-// Importa tus opciones reales en lugar de este fallback si tienes el archivo:
-// import '../constants/opciones_invito.dart';
-const List<Map<String, String>> opcionesInvitoFallback = [
-  {'label': 'Amigo', 'value': 'Amigo'},
-  {'label': 'Familiar', 'value': 'Familiar'},
-  {'label': 'Otro', 'value': 'Otro'},
-];
+import '../providers/registro_provider.dart';
+import '../constants/opciones_invito.dart'; // usa tu archivo real
 
 class ShowInfoScreen extends ConsumerStatefulWidget {
-  final String id; // mantendremos string (viene del router)
-  const ShowInfoScreen({Key? key, required this.id}) : super(key: key);
+  final int id;
+  const ShowInfoScreen({super.key, required this.id});
 
   @override
   ConsumerState<ShowInfoScreen> createState() => _ShowInfoScreenState();
@@ -26,174 +14,129 @@ class ShowInfoScreen extends ConsumerStatefulWidget {
 
 class _ShowInfoScreenState extends ConsumerState<ShowInfoScreen> {
   bool _loading = true;
-  bool _submitting = false;
-  Map<String, dynamic> _registro = {};
+  bool _saving = false;
 
-  final TextEditingController _correoController = TextEditingController();
-  final TextEditingController _telefonoController = TextEditingController();
-  final TextEditingController _escProcController = TextEditingController();
-  final TextEditingController _programaInteresController = TextEditingController();
+  final _correoCtrl = TextEditingController();
+  final _telefonoCtrl = TextEditingController();
+  final _escProcCtrl = TextEditingController();
+  final _programaInteresCtrl = TextEditingController();
 
+  String _nombre = '';
+  String _nivelEstudios = '';
   String _nombreInvito = '';
   String _asistio = 'NO';
 
   @override
   void initState() {
     super.initState();
-    _fetchRegistro();
+    Future.microtask(_load);
   }
 
   @override
   void dispose() {
-    _correoController.dispose();
-    _telefonoController.dispose();
-    _escProcController.dispose();
-    _programaInteresController.dispose();
+    _correoCtrl.dispose();
+    _telefonoCtrl.dispose();
+    _escProcCtrl.dispose();
+    _programaInteresCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _fetchRegistro() async {
+  Future<void> _load() async {
     setState(() => _loading = true);
-
     final evento = ref.read(eventoProvider);
     if (evento.isEmpty) {
-      _showSnack('No hay evento seleccionado', isError: true);
+      _snack('No hay evento seleccionado', error: true);
       setState(() => _loading = false);
       return;
     }
 
     try {
-      final url = Uri.parse(
-        '$BASE_URL/registros/${widget.id}?conferencista=${Uri.encodeComponent(evento)}',
-      );
-      final res = await http.get(url);
+      final registro = await ref.read(registroProvider.notifier).getById(widget.id);
 
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        if (data is Map<String, dynamic>) {
-          _registro = data;
-        } else {
-          _registro = Map<String, dynamic>.from(data as Map);
-        }
-
-        _correoController.text = (_registro['correo'] ?? '').toString();
-        _telefonoController.text = (_registro['telefono'] ?? '').toString();
-        _escProcController.text = (_registro['escProc'] ?? '').toString();
-        _programaInteresController.text = (_registro['programaInteres'] ?? '').toString();
-        _nombreInvito = (_registro['Nombre_invito'] ?? '').toString();
-        _asistio = (_registro['asistio'] ?? 'NO').toString();
-      } else {
-        _showSnack('No se pudo obtener el registro', isError: true);
-      }
+      _nombre = registro.nombre ?? '';
+      _correoCtrl.text = registro.correo ?? '';
+      _telefonoCtrl.text = registro.telefono ?? '';
+      _escProcCtrl.text = registro.escuelaProcedencia ?? '';
+      _programaInteresCtrl.text = registro.programa ?? '';
+      _nivelEstudios = registro.edad ?? ''; // o mapea si tienes nivelEstudios
+      _nombreInvito = registro.comoEnteroEvento ?? '';
+      _asistio = (registro.asistio == true) ? 'SI' : 'NO';
     } catch (e) {
-      debugPrint('Error fetching registro: $e');
-      _showSnack('Error al obtener datos', isError: true);
+      _snack('No se pudo obtener el registro', error: true);
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _confirmAttendance() async {
-    final evento = ref.read(eventoProvider);
-    if (evento.isEmpty) {
-      _showSnack('No hay evento seleccionado', isError: true);
+  Future<void> _guardar() async {
+    final nombre = _nombre.trim();
+    final telefono = _telefonoCtrl.text.trim();
+    final correo = _correoCtrl.text.trim();
+
+    if (nombre.isEmpty || telefono.isEmpty) {
+      _snack('Nombre y teléfono son requeridos', error: true);
       return;
     }
-
-    final nombre = (_registro['nombre'] ?? '').toString();
-    final telefono = _telefonoController.text.trim();
-    final correo = _correoController.text.trim();
-
-    if (nombre.trim().isEmpty || telefono.trim().isEmpty) {
-      _showSnack('Nombre y teléfono son requeridos', isError: true);
-      return;
-    }
-
     if (correo.isNotEmpty) {
-      final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+      final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+\$');
       if (!emailRegex.hasMatch(correo)) {
-        _showSnack('Correo inválido', isError: true);
+        _snack('Correo inválido', error: true);
         return;
       }
     }
 
-    setState(() => _submitting = true);
-
+    setState(() => _saving = true);
     try {
-      final url = Uri.parse(
-        '$BASE_URL/registros/${widget.id}?conferencista=${Uri.encodeComponent(evento)}',
-      );
-
-      final body = {
-        'nombre': nombre,
+      final payload = <String, dynamic>{
         'correo': correo,
         'telefono': telefono,
-        'Nivel_Estudios': _registro['Nivel_Estudios'] ?? '',
-        'Nombre_invito': _nombreInvito,
-        'escProc': _escProcController.text.toUpperCase(),
-        'programaInteres': _programaInteresController.text,
-        'asistio': _asistio,
+        'escuela_procedencia': _escProcCtrl.text.trim().toUpperCase(),
+        'programa': _programaInteresCtrl.text.trim(),
+        'como_entero_evento': _nombreInvito,
+        'asistio': _asistio.toUpperCase() == 'SI',
       };
 
-      final res = await http.put(url,
-          headers: {'Content-Type': 'application/json'}, body: jsonEncode(body));
+      await ref.read(registroProvider.notifier).update(widget.id, payload);
 
-      if (res.statusCode == 200 || res.statusCode == 204) {
-        _showSnack('Registro actualizado correctamente');
-        Future.delayed(const Duration(milliseconds: 800),
-            () => Navigator.of(context).pop());
-      } else {
-        debugPrint('Update failed: ${res.statusCode} ${res.body}');
-        _showSnack('Error al actualizar registro', isError: true);
-      }
+      _snack('Registro actualizado');
+      if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      debugPrint('Error updating registro: $e');
-      _showSnack('Error al actualizar registro', isError: true);
+      _snack('Error al actualizar', error: true);
     } finally {
-      setState(() => _submitting = false);
+      if (mounted) setState(() => _saving = false);
     }
   }
 
-  void _showSnack(String message, {bool isError = false}) {
-    final snack = SnackBar(content: Text(message), backgroundColor: isError ? Colors.redAccent : null);
-    ScaffoldMessenger.of(context).showSnackBar(snack);
-  }
-
-  Widget _buildLabel(String text) {
-    final colors = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6.0),
-      child: Text(text, style: TextStyle(fontWeight: FontWeight.bold, color: colors.onSurface)),
+  void _snack(String msg, {bool error = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: error ? Colors.redAccent : null),
     );
   }
 
-  Widget _buildField(String labelText, TextEditingController controller,
-      {bool editable = true, TextInputType? keyboardType}) {
-    final colors = Theme.of(context).colorScheme;
+  Widget _label(BuildContext context, String text) {
+    final c = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildLabel(labelText),
-          TextField(
-            controller: controller,
-            enabled: editable,
-            keyboardType: keyboardType,
-            decoration: InputDecoration(
-              border: const OutlineInputBorder(),
-              filled: true,
-              fillColor: editable ? colors.surface : colors.surface.withOpacity(0.6),
-            ),
-          ),
-        ],
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(text, style: TextStyle(fontWeight: FontWeight.bold, color: c.onSurface)),
+    );
+  }
+
+  Widget _readonlyBox(BuildContext context, String value) {
+    final c = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: c.onSurface.withOpacity(0.1)),
       ),
+      child: Text(value.isEmpty ? '-' : value),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final c = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Información de Registro')),
@@ -206,59 +149,81 @@ class _ShowInfoScreenState extends ConsumerState<ShowInfoScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildLabel('Nombre'),
-                    Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: colors.surface,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: colors.onSurface.withOpacity(0.1)),
-                      ),
-                      child: Text(_registro['nombre']?.toString() ?? 'Sin nombre'),
+                    _label(context, 'Nombre'),
+                    _readonlyBox(context, _nombre),
+                    const SizedBox(height: 12),
+
+                    _label(context, 'Correo'),
+                    TextField(
+                      controller: _correoCtrl,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(border: OutlineInputBorder()),
                     ),
                     const SizedBox(height: 12),
-                    _buildField('Correo', _correoController, keyboardType: TextInputType.emailAddress),
-                    _buildField('Teléfono', _telefonoController, keyboardType: TextInputType.phone),
-                    _buildLabel('Nivel de Estudios'),
-                    Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: colors.surface,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: colors.onSurface.withOpacity(0.1)),
-                      ),
-                      child: Text(_registro['Nivel_Estudios']?.toString() ?? ''),
+
+                    _label(context, 'Teléfono'),
+                    TextField(
+                      controller: _telefonoCtrl,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(border: OutlineInputBorder()),
                     ),
                     const SizedBox(height: 12),
-                    _buildField('Escuela de Procedencia', _escProcController),
-                    _buildField('Programa de Interés', _programaInteresController),
-                    const SizedBox(height: 8),
-                    _buildLabel('¿Quién te invitó?'),
+
+                    _label(context, 'Nivel de Estudios'),
+                    _readonlyBox(context, _nivelEstudios),
+                    const SizedBox(height: 12),
+
+                    _label(context, 'Escuela de Procedencia'),
+                    TextField(
+                      controller: _escProcCtrl,
+                      decoration: const InputDecoration(border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 12),
+
+                    _label(context, 'Programa de Interés'),
+                    TextField(
+                      controller: _programaInteresCtrl,
+                      decoration: const InputDecoration(border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 12),
+
+                    _label(context, '¿Quién te invitó?'),
                     DropdownButtonFormField<String>(
                       value: _nombreInvito.isEmpty ? null : _nombreInvito,
-                      items: opcionesInvitoFallback
-                          .map((e) => DropdownMenuItem(value: e['value'] ?? e['label'], child: Text(e['label']!)))
+                      items: opcionesInvito
+                          .map((e) => DropdownMenuItem(
+                                value: e['value'] ?? '',
+                                child: Text(e['label'] ?? ''),
+                              ))
                           .toList(),
                       onChanged: (v) => setState(() => _nombreInvito = v ?? ''),
                       decoration: const InputDecoration(border: OutlineInputBorder()),
                     ),
                     const SizedBox(height: 12),
-                    _buildLabel('¿Asistió?'),
+
+                    _label(context, '¿Asistió?'),
                     DropdownButtonFormField<String>(
                       value: _asistio,
-                      items: ['SI', 'NO'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                      items: const ['SI', 'NO']
+                          .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                          .toList(),
                       onChanged: (v) => setState(() => _asistio = v ?? 'NO'),
                       decoration: const InputDecoration(border: OutlineInputBorder()),
                     ),
+
                     const SizedBox(height: 20),
                     ElevatedButton(
-                      onPressed: _submitting ? null : _confirmAttendance,
-                      child: _submitting
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      onPressed: _saving ? null : _guardar,
+                      child: _saving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                           : const Text('Confirmar asistencia'),
                     ),
                     const SizedBox(height: 10),
-                    OutlinedButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancelar')),
+                    OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(), child: const Text('Cancelar')),
                   ],
                 ),
               ),

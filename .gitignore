@@ -11,6 +11,11 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
+.vs/
+.vscode-test/
+.env
+.env.*.local
+
 
 # IntelliJ related
 *.iml

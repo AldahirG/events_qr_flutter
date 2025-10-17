@@ -1,14 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import '../providers/evento_provider.dart';
-import '../utils/programas_por_nivel.dart'; // Debes crear un archivo similar al getProgramOptions
+import '../providers/registro_provider.dart';
+import '../utils/programas_por_nivel.dart';
 import '../constants/opciones_invito.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-
-const String BASE_URL = 'https://tu-api-aqui.com';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -35,52 +30,47 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   bool _showSuccess = false;
 
   String limpiarTexto(String texto) {
-    return texto
-        .toUpperCase()
-        .replaceAll(RegExp(r'[^\w\s]'), '');
+    return texto.toUpperCase().replaceAll(RegExp(r'[^\w\s]'), '');
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _loading = true);
-
     try {
       final evento = ref.read(eventoProvider);
-      if (evento.isEmpty) throw Exception('No hay evento seleccionado');
+      if (evento.isEmpty) {
+        throw Exception('No hay evento seleccionado');
+      }
 
       final payload = {
         'nombre': limpiarTexto(_nombreController.text.trim()),
         'correo': _correoController.text.trim().toLowerCase(),
         'telefono': _telefonoController.text.trim(),
-        'Nivel_Estudios': _nivelEstudios,
-        'Conferencista': evento,
-        'Nombre_invito': _nombreInvito,
+        'nivel_estudios': _nivelEstudios,
+        'conferencista': evento,
+        'nombre_invito': _nombreInvito,
         'fecha_registro': DateTime.now().toIso8601String(),
         'alumno': _alumno,
         'tipo': 'SESIÓN INFORMATIVA',
-        'escProc': limpiarTexto(_escProcController.text.trim()),
-        'NivelUninter': _nivelUninter,
-        'programaInteres': _programaInteres,
-        'asistio': 'SI',
+        'escuela_procedencia': limpiarTexto(_escProcController.text.trim()),
+        'nivel_uninter': _nivelUninter,
+        'programa': _programaInteres,
+        'asistio': true,
       };
 
-      final url = Uri.parse('$BASE_URL/registros/create?conferencista=${Uri.encodeComponent(evento)}');
-      final res = await http.post(url, body: jsonEncode(payload), headers: {'Content-Type': 'application/json'});
+      await ref.read(registroProvider.notifier).create(payload);
 
-      if (res.statusCode == 200 || res.statusCode == 201) {
-        setState(() => _showSuccess = true);
-        await Future.delayed(const Duration(seconds: 2));
-        setState(() => _showSuccess = false);
-        _limpiarCampos();
-        Navigator.of(context).pop(); // Regresa al Home
-      } else {
-        _mostrarError('Error al crear el registro');
-      }
+      setState(() => _showSuccess = true);
+      await Future.delayed(const Duration(seconds: 1));
+      setState(() => _showSuccess = false);
+
+      _limpiarCampos();
+      if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      _mostrarError('Error en la solicitud: $e');
+      _mostrarError('Error: $e');
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -134,7 +124,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       decoration: const InputDecoration(labelText: 'Teléfono'),
                       keyboardType: TextInputType.phone,
                       validator: (v) {
-                        if (v == null || v.trim().length != 10) return 'Teléfono inválido';
+                        final t = (v ?? '').trim();
+                        if (t.length != 10 || int.tryParse(t) == null) return 'Teléfono inválido';
                         return null;
                       },
                     ),
@@ -142,7 +133,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     DropdownButtonFormField<String>(
                       value: _nivelEstudios.isEmpty ? null : _nivelEstudios,
                       decoration: const InputDecoration(labelText: 'Nivel de Estudios'),
-                      items: ['SECUNDARIA', 'BACHILLERATO', 'UNIVERSIDAD', 'POSGRADO']
+                      items: const ['SECUNDARIA', 'BACHILLERATO', 'UNIVERSIDAD', 'POSGRADO']
                           .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                           .toList(),
                       onChanged: (v) => setState(() {
@@ -169,7 +160,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     DropdownButtonFormField<String>(
                       value: _alumno.isEmpty ? null : _alumno,
                       decoration: const InputDecoration(labelText: '¿Eres alumno Uninter?'),
-                      items: ['SI', 'NO'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                      items: const ['SI', 'NO']
+                          .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                          .toList(),
                       onChanged: (v) => setState(() => _alumno = v ?? ''),
                     ),
                     const SizedBox(height: 10),

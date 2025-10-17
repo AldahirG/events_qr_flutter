@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'models/event.dart';
@@ -7,17 +9,39 @@ import 'app_router.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inicializar Hive
+  // 1️⃣ Cargar .env
+  try {
+  await dotenv.load(fileName: ".env").timeout(const Duration(seconds: 5));
+  debugPrint('✅ .env cargado. BASE_URL=${dotenv.env['BASE_URL']}');
+
+  } catch (e, st) {
+    debugPrint('No se pudo cargar .env (continuando sin él): $e');
+    debugPrintStack(stackTrace: st);
+  }
+
+  // 2️⃣ Inicializar Hive
   await Hive.initFlutter();
+  if (!Hive.isAdapterRegistered(0)) {
+    Hive.registerAdapter(EventAdapter());
+  }
 
-  // Registrar adapter manual
-  Hive.registerAdapter<Event>(EventAdapter());
+  // 3️⃣ Abrir boxes
+  try {
+    await Hive.openBox<Event>('events');
+    await Hive.openBox('settings');
+  } catch (e, st) {
+    debugPrint('Error abriendo boxes de Hive: $e');
+    debugPrintStack(stackTrace: st);
+  }
 
-  // Abrir boxes
-  await Hive.openBox<Event>('events');     // Para eventos escaneados o registrados
-  await Hive.openBox('settings');          // Para configuraciones de usuario (tema, idioma, etc.)
-
-  runApp(const ProviderScope(child: MyApp()));
+  // 4️⃣ Ejecutar app en zona segura
+  runZonedGuarded(
+    () => runApp(const ProviderScope(child: MyApp())),
+    (error, stack) {
+      debugPrint('Error no capturado en la app: $error');
+      debugPrintStack(stackTrace: stack);
+    },
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -26,12 +50,13 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'Events QR Flutter',
+      title: 'QrApp Flutter',
       debugShowCheckedModeBanner: false,
       routerConfig: appRouter,
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+        appBarTheme: const AppBarTheme(centerTitle: true),
       ),
     );
   }

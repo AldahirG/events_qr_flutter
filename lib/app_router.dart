@@ -35,7 +35,8 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: '/show-info/:id',
           builder: (c, s) {
-            final id = s.pathParameters['id']!;
+            final idStr = s.pathParameters['id']!;
+            final id = int.tryParse(idStr) ?? 0;
             return ShowInfoScreen(id: id);
           },
         ),
