@@ -1,4 +1,5 @@
 // lib/screens/list_screen.dart
+import 'package:events_qr_flutter/models/registro.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -75,27 +76,36 @@ class _ListScreenState extends ConsumerState<ListScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-            child: TextField(
-              controller: _searchCtrl,
-              decoration: InputDecoration(
-                hintText: 'Buscar por nombre, teléfono o ID…',
-                prefixIcon: const Icon(Icons.search),
-                isDense: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                suffixIcon: _searchCtrl.text.isEmpty
-                    ? null
-                    : IconButton(
-                        tooltip: 'Limpiar',
-                        onPressed: () {
-                          _searchCtrl.clear();
-                          ref.read(registroProvider.notifier).setQuery('');
-                        },
-                        icon: const Icon(Icons.close),
-                      ),
-              ),
-              textInputAction: TextInputAction.search,
-              onChanged: (q) => ref.read(registroProvider.notifier).setQuery(q.trim()),
-              onSubmitted: (q) => ref.read(registroProvider.notifier).applySearch(),
+            child: ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _searchCtrl,
+              builder: (context, value, _) {
+                return TextField(
+                  controller: _searchCtrl,
+                  decoration: InputDecoration(
+                    hintText: 'Buscar por nombre, teléfono o ID…',
+                    prefixIcon: const Icon(Icons.search),
+                    isDense: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    suffixIcon: value.text.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: 'Limpiar',
+                            onPressed: () {
+                              _searchCtrl.clear();
+                              ref.read(registroProvider.notifier).setQuery('');
+                            },
+                            icon: const Icon(Icons.close),
+                          ),
+                  ),
+                  textInputAction: TextInputAction.search,
+                  onChanged: (q) =>
+                      ref.read(registroProvider.notifier).setQuery(q.trim()),
+                  onSubmitted: (_) =>
+                      ref.read(registroProvider.notifier).applySearch(),
+                );
+              },
             ),
           ),
           _FiltersSummary(
@@ -116,7 +126,9 @@ class _ListScreenState extends ConsumerState<ListScreen> {
                   if (prov.errorMessage != null && prov.items.isEmpty) {
                     return _ErrorState(
                       message: prov.errorMessage!,
-                      onRetry: () => ref.read(registroProvider.notifier).fetchInitial(),
+                      onRetry: () => ref
+                          .read(registroProvider.notifier)
+                          .fetchInitial(),
                     );
                   }
 
@@ -130,7 +142,9 @@ class _ListScreenState extends ConsumerState<ListScreen> {
                               notif.metrics.maxScrollExtent - 200 &&
                           !prov.isPaginating &&
                           prov.hasMore) {
-                        ref.read(registroProvider.notifier).fetchNextPage();
+                        ref
+                            .read(registroProvider.notifier)
+                            .fetchNextPage();
                       }
                       return false;
                     },
@@ -138,7 +152,8 @@ class _ListScreenState extends ConsumerState<ListScreen> {
                       controller: _scroll,
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(12, 8, 12, 100),
-                      itemCount: prov.items.length + (prov.isPaginating ? 1 : 0),
+                      itemCount:
+                          prov.items.length + (prov.isPaginating ? 1 : 0),
                       separatorBuilder: (_, __) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
                         if (index >= prov.items.length) {
@@ -157,8 +172,11 @@ class _ListScreenState extends ConsumerState<ListScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         tooltip: 'Arriba',
-        onPressed: () => _scroll.animateTo(0,
-            duration: const Duration(milliseconds: 350), curve: Curves.easeOut),
+        onPressed: () => _scroll.animateTo(
+          0,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOut,
+        ),
         child: const Icon(Icons.arrow_upward_rounded),
       ),
     );
@@ -166,38 +184,27 @@ class _ListScreenState extends ConsumerState<ListScreen> {
 }
 
 class _RegistroTile extends ConsumerWidget {
-  final dynamic registro;
+  final Registro registro;
   const _RegistroTile({required this.registro});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final id = registro.id?.toString() ?? '-';
-    final nombre = (registro.nombreCompleto ?? registro.nombre ?? '').toString();
-    final telefono = (registro.telefono ?? '').toString();
-    final programa = (registro.programa ?? '').toString();
-    final folio = id.padLeft(3, '0');
+    final nombre = registro.nombreCompleto;
+    final telefono = (registro.telefono ?? '').trim();
+    final programa = (registro.programa ?? '').trim();
+    final folio = registro.folio; // "001", "095", etc.
 
+    final fecha = registro.fechaRegistro; // non-null en el modelo
+    final df = DateFormat('dd/MM/yyyy HH:mm', 'es_MX');
+    final fechaStr = df.format(fecha);
 
-    DateTime? fecha;
-    try {
-      final raw = registro.fechaRegistro ?? registro.createdAt ?? registro.fecha ?? null;
-      if (raw is DateTime) {
-        fecha = raw;
-      } else if (raw is String && raw.isNotEmpty) {
-        fecha = DateTime.tryParse(raw);
-      }
-    } catch (_) {}
-
-    final df = DateFormat('dd/MM/yyyy HH:mm');
-    final fechaStr = fecha != null ? df.format(fecha) : '—';
-
-    final confirmado = (registro.confirmado ?? false) == true;
-    final asistio = (registro.asistio == true || registro.asistio == 1);
+    final asistio = registro.asistio == true;
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         leading: CircleAvatar(
           child: Text(
             (nombre.isNotEmpty ? nombre[0] : '#').toUpperCase(),
@@ -219,15 +226,17 @@ class _RegistroTile extends ConsumerWidget {
               children: [
                 if (programa.isNotEmpty)
                   Chip(
-                    label: Text(programa, overflow: TextOverflow.ellipsis),
+                    label: Text(
+                      programa,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     visualDensity: VisualDensity.compact,
                   ),
-                if (folio.isNotEmpty)
-                  Chip(
-                    label: Text('ID: $folio'),
-                    avatar: const Icon(Icons.confirmation_number_outlined, size: 16),
-                    visualDensity: VisualDensity.compact,
-                  ),
+                Chip(
+                  label: Text('ID: $folio'),
+                  avatar: const Icon(Icons.confirmation_number_outlined, size: 16),
+                  visualDensity: VisualDensity.compact,
+                ),
                 Chip(
                   label: Text(fechaStr),
                   avatar: const Icon(Icons.schedule, size: 16),
@@ -237,46 +246,47 @@ class _RegistroTile extends ConsumerWidget {
             ),
           ],
         ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _Badge(
-              label: confirmado ? 'Confirmado' : 'Sin confirmar',
-              color: confirmado ? Colors.green : Colors.orange,
-              icon: confirmado ? Icons.verified_outlined : Icons.error_outline,
-            ),
-            const SizedBox(height: 6),
-            _Badge(
-              label: asistio ? 'Asistió' : 'Pendiente',
-              color: asistio ? Colors.blue : Colors.grey,
-              icon: asistio ? Icons.event_available_outlined : Icons.hourglass_bottom,
-            ),
-          ],
+        trailing: _Badge(
+          label: asistio ? 'Asistió' : 'Pendiente',
+          color: asistio ? Colors.blue : Colors.grey,
+          icon: asistio
+              ? Icons.event_available_outlined
+              : Icons.hourglass_bottom,
         ),
         onTap: () async {
           final confirmed = await showDialog<bool>(
             context: context,
-            builder: (_) => AlertDialog(
-              title: Text('Confirmar asistencia'),
+            useRootNavigator: false,           // 👈 clave con go_router + ShellRoute
+            barrierDismissible: false,         // opcional: evita pops “accidentales”
+            builder: (ctx) => AlertDialog(
+              title: const Text('Confirmar asistencia'),
               content: Text('¿Confirmar asistencia de "$nombre"?'),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-                ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Sí, confirmar')),
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(false),   // 👈 usa ctx
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(ctx).pop(true),    // 👈 usa ctx
+                  child: const Text('Sí, confirmar'),
+                ),
               ],
             ),
           );
-          if (confirmed == true) {
-            await ref.read(registroProvider.notifier).update(
-              registro.id,
-              {'asistio': 1},
-            );
-            await ref.read(registroProvider.notifier).refresh();
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Asistencia confirmada')),
-              );
-            }
-          }
+          
+          if (confirmed != true) return;        // 👈 si canceló o cerró, no sigas
+          
+          await ref.read(registroProvider.notifier).update(
+            registro.id,
+            {'asistio': 1},
+          );
+          
+          if (!context.mounted) return;
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Asistencia confirmada')),
+          );
+
         },
       ),
     );
@@ -287,7 +297,11 @@ class _FiltersSummary extends StatelessWidget {
   final DateTime? month;
   final int? total;
   final int visibles;
-  const _FiltersSummary({required this.month, required this.total, required this.visibles});
+  const _FiltersSummary({
+    required this.month,
+    required this.total,
+    required this.visibles,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -295,21 +309,32 @@ class _FiltersSummary extends StatelessWidget {
     final chips = <Widget>[];
 
     if (month != null) {
-      chips.add(Chip(
-        label: Text('Mes: ${df.format(month!)}'),
-        avatar: const Icon(Icons.calendar_today, size: 18),
-      ));
+      chips.add(
+        Chip(
+          label: Text('Mes: ${df.format(month!)}'),
+          avatar: const Icon(Icons.calendar_today, size: 18),
+        ),
+      );
     }
 
-    chips.add(Chip(
-      label: Text('Mostrados: $visibles' + (total != null ? ' / $total' : '')),
-      avatar: const Icon(Icons.list_alt, size: 18),
-    ));
+    chips.add(
+      Chip(
+        label: Text('Mostrados: $visibles' + (total != null ? ' / $total' : '')),
+        avatar: const Icon(Icons.list_alt, size: 18),
+      ),
+    );
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(children: chips.map((c) => Padding(padding: const EdgeInsets.only(right: 8), child: c)).toList()),
+      child: Row(
+        children: chips
+            .map((c) => Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: c,
+                ))
+            .toList(),
+      ),
     );
   }
 }
@@ -336,7 +361,11 @@ class _Badge extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             label,
-            style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontSize: 12,
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -378,7 +407,7 @@ class _EmptyState extends StatelessWidget {
           Text(
             'Ajusta tu búsqueda o filtros',
             style: Theme.of(context).textTheme.bodySmall,
-          )
+          ),
         ],
       ),
     );
@@ -405,7 +434,7 @@ class _ErrorState extends StatelessWidget {
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
               label: const Text('Reintentar'),
-            )
+            ),
           ],
         ),
       ),

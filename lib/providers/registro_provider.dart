@@ -1,21 +1,26 @@
 // lib/providers/registro_provider.dart
+
+import 'package:events_qr_flutter/core/api_client.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:diacritic/diacritic.dart';
 import 'package:flutter_riverpod/legacy.dart';
-import '../core/api_client.dart';
+
 import '../models/registro.dart';
+// ⚠️ Elimina imports que ya no usamos:
+// import 'package:flutter_riverpod/legacy.dart';
+// import '../core/api_client.dart';
 
 class RegistroState {
   final bool isLoading;
   final bool isPaginating;
-  final List<Registro> all;
-  final List<Registro> items;
+  final List<Registro> all;    // universo descargado
+  final List<Registro> items;  // con filtros aplicados (UI)
   final String? errorMessage;
-  final bool hasMore;
-  final int page;
+  final bool hasMore;          // sin paginar por ahora
+  final int page;              // reservado por si agregas paginación
   final int pageSize;
-  final int? total;
+  final int? total;            // total (post-filtro opcional)
   final String query;
   final DateTime? month;
 
@@ -69,18 +74,19 @@ class RegistroNotifier extends StateNotifier<RegistroState> {
 
   RegistroNotifier(this._dio) : super(const RegistroState());
 
-  String _normalize(String s) => removeDiacritics(s.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim());
-  String _digitsOnly(String s) => s.replaceAll(RegExp(r'\D+'), '');
+  String _normalize(String s) =>
+      removeDiacritics(s.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim());
+  String _digitsOnly(String? s) => (s ?? '').replaceAll(RegExp(r'\D+'), '');
 
   bool _matchesQuery(Registro r, String q) {
     if (q.trim().isEmpty) return true;
     final name = _normalize(r.nombre ?? '');
-    final phone = _digitsOnly(r.telefono ?? '');
-    final id = r.id.toString();
+    final phone = _digitsOnly(r.telefono);
+    final idStr = r.id.toString();
     final tokens = _normalize(q).split(' ').where((t) => t.isNotEmpty).toList();
 
     for (final tok in tokens) {
-      if (!(name.contains(tok) || phone.contains(tok) || id.contains(tok))) {
+      if (!(name.contains(tok) || phone.contains(tok) || idStr.contains(tok))) {
         return false;
       }
     }
@@ -90,56 +96,66 @@ class RegistroNotifier extends StateNotifier<RegistroState> {
   void _applyFilters() {
     Iterable<Registro> base = state.all;
 
+    // Filtro por mes
     if (state.month != null) {
       final start = DateTime(state.month!.year, state.month!.month, 1);
       final end = DateTime(start.year, start.month + 1, 1);
-      base = base.where((r) => r.fechaRegistro != null && r.fechaRegistro!.isAfter(start.subtract(const Duration(seconds: 1))) && r.fechaRegistro!.isBefore(end));
+      base = base.where((r) =>
+          r.fechaRegistro.isAfter(start.subtract(const Duration(seconds: 1))) &&
+          r.fechaRegistro.isBefore(end));
     }
 
+    // Filtro por query
     if (state.query.trim().isNotEmpty) {
       base = base.where((r) => _matchesQuery(r, state.query));
     }
 
-    final list = base.toList()..sort((a, b) => (b.fechaRegistro ?? DateTime(0)).compareTo(a.fechaRegistro ?? DateTime(0)));
-    state = state.copyWith(items: list, errorMessage: null);
+    final list = base.toList()
+      ..sort((a, b) => b.fechaRegistro.compareTo(a.fechaRegistro));
+
+    state = state.copyWith(items: list, total: state.all.length, errorMessage: null);
   }
 
-  Future<void> fetchInitial() async => await list(page: 1);
-  Future<void> refresh() async => await list(page: 1);
+  Future<void> fetchInitial() async => list(page: 1);
+  Future<void> refresh() async => list(page: 1);
 
   Future<void> list({int page = 1}) async {
     final isFirstPage = page == 1;
-    if (isFirstPage) {
-      state = state.copyWith(isLoading: true, errorMessage: null, page: 1);
-    } else {
-      state = state.copyWith(isPaginating: true, errorMessage: null, page: page);
-    }
+
+    state = state.copyWith(
+      isLoading: isFirstPage,
+      isPaginating: !isFirstPage,
+      errorMessage: null,
+      page: page,
+    );
 
     try {
-      final r = await _dio.get('', cancelToken: _cancel);
-      final data = r.data;
-      List listRaw;
-
-      if (data is List) {
-        listRaw = data;
-      } else if (data is Map) {
-        listRaw = (data['items'] ?? data['data'] ?? []) as List;
+      // GET /  → listado completo
+      final r = await _dio.get('/', cancelToken: _cancel);
+      List raw;
+      if (r.data is List) {
+        raw = r.data as List;
+      } else if (r.data is Map) {
+        raw = (r.data['items'] ?? r.data['data'] ?? []) as List;
       } else {
-        listRaw = [];
+        raw = const [];
       }
 
-      final registros = listRaw.map((e) => Registro.fromJson(e)).toList();
+      final registros = raw.map((e) => Registro.fromJson(e as Map<String, dynamic>)).toList();
+
       final merged = isFirstPage ? registros : [...state.all, ...registros];
 
       state = state.copyWith(
         isLoading: false,
         isPaginating: false,
         all: merged,
-        total: registros.length,
-        hasMore: false,
+        // Total del universo descargado (no del page actual)
+        total: merged.length,
+        hasMore: false, // no hay paginación en backend hoy
         errorMessage: null,
         page: page,
       );
+
       _applyFilters();
     } catch (e) {
       state = state.copyWith(
@@ -151,6 +167,7 @@ class RegistroNotifier extends StateNotifier<RegistroState> {
   }
 
   Future<void> fetchNextPage() async {
+    // sin paginación real, evitamos más llamadas
     if (!state.hasMore || state.isPaginating) return;
     await list(page: state.page + 1);
   }
@@ -173,23 +190,34 @@ class RegistroNotifier extends StateNotifier<RegistroState> {
     _applyFilters();
   }
 
-  Future<Registro> getById(dynamic id) async {
-    final r = await _dio.get('$id', cancelToken: _cancel);
-    return Registro.fromJson(r.data);
-  }
+  // ---------- CRUD contra tu backend ----------
+
+  Future<Registro> getById(int id) async {
+    // GET /get/:id
+    final r = await _dio.get('/get/$id', cancelToken: _cancel);
+    return Registro.fromJson(r.data as Map<String, dynamic>);
+    }
 
   Future<void> create(Map<String, dynamic> body) async {
-    await _dio.post('create', data: body, cancelToken: _cancel);
+    // POST /create
+    await _dio.post('/create', data: body, cancelToken: _cancel);
     await fetchInitial();
   }
 
-  Future<void> update(dynamic id, Map<String, dynamic> body) async {
-    await _dio.put('$id', data: body, cancelToken: _cancel);
+  Future<void> update(int id, Map<String, dynamic> body) async {
+    // PUT /update/:id
+    await _dio.put('/update/$id', data: body, cancelToken: _cancel);
+    await refresh();
+  }
+
+  Future<void> delete(int id) async {
+    // DELETE /delete/:id
+    await _dio.delete('/delete/$id', cancelToken: _cancel);
     await refresh();
   }
 
   Future<void> confirmarAsistencia(int id) async {
-    await update(id, { 'asistio': 1 });
+    await update(id, {'asistio': 1});
   }
 
   @override
@@ -199,7 +227,10 @@ class RegistroNotifier extends StateNotifier<RegistroState> {
   }
 }
 
-final registroProvider = StateNotifierProvider<RegistroNotifier, RegistroState>((ref) {
-  final dio = ref.watch(dioProvider); // ← CAMBIO AQUÍ
+// --- Provider raíz ---
+// Asegúrate de tener un dioProvider que configure baseURL = .../api/registros
+final registroProvider =
+    StateNotifierProvider<RegistroNotifier, RegistroState>((ref) {
+  final dio = ref.watch(dioProvider);
   return RegistroNotifier(dio);
 });
