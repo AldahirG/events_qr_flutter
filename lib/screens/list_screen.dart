@@ -1,9 +1,7 @@
-// lib/screens/list_screen.dart
 import 'package:events_qr_flutter/models/registro.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-
 import '../providers/registro_provider.dart';
 
 class ListScreen extends ConsumerStatefulWidget {
@@ -16,7 +14,6 @@ class ListScreen extends ConsumerStatefulWidget {
 class _ListScreenState extends ConsumerState<ListScreen> {
   final ScrollController _scroll = ScrollController();
   final TextEditingController _searchCtrl = TextEditingController();
-
   DateTime? _selectedMonth;
 
   @override
@@ -36,9 +33,25 @@ class _ListScreenState extends ConsumerState<ListScreen> {
   Widget build(BuildContext context) {
     final prov = ref.watch(registroProvider);
 
+    // 🎃 Colores HalloweenFest
+    final darkBg = const Color(0xFF12101C);
+    final cardColor = const Color(0xFF1E1B2D);
+    final orange = const Color(0xFFFF6B00);
+    final accent = const Color(0xFFFFAE42);
+    final green = const Color(0xFF64FF6A);
+
     return Scaffold(
+      backgroundColor: darkBg,
       appBar: AppBar(
-        title: const Text('Registros'),
+        backgroundColor: cardColor,
+        title: const Text(
+          'Registros 🎃',
+          style: TextStyle(
+            color: Color(0xFFFF6B00),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        centerTitle: true,
         actions: [
           IconButton(
             tooltip: 'Limpiar filtros',
@@ -49,7 +62,8 @@ class _ListScreenState extends ConsumerState<ListScreen> {
               });
               ref.read(registroProvider.notifier).clearFiltersAndReload();
             },
-            icon: const Icon(Icons.filter_alt_off_outlined),
+            icon: const Icon(Icons.filter_alt_off_outlined,
+                color: Color(0xFFFFAE42)),
           ),
           IconButton(
             tooltip: 'Elegir mes',
@@ -61,6 +75,16 @@ class _ListScreenState extends ConsumerState<ListScreen> {
                 firstDate: DateTime(now.year - 3, 1, 1),
                 lastDate: DateTime(now.year + 3, 12, 31),
                 helpText: 'Selecciona una fecha del mes a filtrar',
+                builder: (ctx, child) => Theme(
+                  data: ThemeData.dark().copyWith(
+                    colorScheme: ColorScheme.dark(
+                      primary: orange,
+                      surface: cardColor,
+                      onSurface: Colors.white,
+                    ),
+                  ),
+                  child: child!,
+                ),
               );
               if (picked != null) {
                 final month = DateTime(picked.year, picked.month, 1);
@@ -68,7 +92,8 @@ class _ListScreenState extends ConsumerState<ListScreen> {
                 ref.read(registroProvider.notifier).filterByMonth(month);
               }
             },
-            icon: const Icon(Icons.calendar_month_outlined),
+            icon:
+                const Icon(Icons.calendar_month_outlined, color: Colors.orange),
           ),
         ],
       ),
@@ -81,12 +106,18 @@ class _ListScreenState extends ConsumerState<ListScreen> {
               builder: (context, value, _) {
                 return TextField(
                   controller: _searchCtrl,
+                  style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     hintText: 'Buscar por nombre, teléfono o ID…',
-                    prefixIcon: const Icon(Icons.search),
+                    hintStyle: const TextStyle(color: Colors.white60),
+                    prefixIcon: const Icon(Icons.search, color: Colors.orange),
                     isDense: true,
+                    filled: true,
+                    fillColor: cardColor,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
+                      borderSide:
+                          BorderSide(color: orange.withOpacity(0.6), width: 1),
                     ),
                     suffixIcon: value.text.isEmpty
                         ? null
@@ -96,7 +127,8 @@ class _ListScreenState extends ConsumerState<ListScreen> {
                               _searchCtrl.clear();
                               ref.read(registroProvider.notifier).setQuery('');
                             },
-                            icon: const Icon(Icons.close),
+                            icon:
+                                const Icon(Icons.close, color: Colors.orange),
                           ),
                   ),
                   textInputAction: TextInputAction.search,
@@ -116,6 +148,7 @@ class _ListScreenState extends ConsumerState<ListScreen> {
           const SizedBox(height: 4),
           Expanded(
             child: RefreshIndicator(
+              color: orange,
               onRefresh: () => ref.read(registroProvider.notifier).refresh(),
               child: Builder(
                 builder: (context) {
@@ -160,7 +193,13 @@ class _ListScreenState extends ConsumerState<ListScreen> {
                           return const _BottomLoader();
                         }
                         final r = prov.items[index];
-                        return _RegistroTile(registro: r);
+                        return _RegistroTile(
+                          registro: r,
+                          cardColor: cardColor,
+                          orange: orange,
+                          accent: accent,
+                          green: green,
+                        );
                       },
                     ),
                   );
@@ -171,13 +210,14 @@ class _ListScreenState extends ConsumerState<ListScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        backgroundColor: orange,
         tooltip: 'Arriba',
         onPressed: () => _scroll.animateTo(
           0,
           duration: const Duration(milliseconds: 350),
           curve: Curves.easeOut,
         ),
-        child: const Icon(Icons.arrow_upward_rounded),
+        child: const Icon(Icons.arrow_upward_rounded, color: Colors.black),
       ),
     );
   }
@@ -185,62 +225,101 @@ class _ListScreenState extends ConsumerState<ListScreen> {
 
 class _RegistroTile extends ConsumerWidget {
   final Registro registro;
-  const _RegistroTile({required this.registro});
+  final Color cardColor;
+  final Color orange;
+  final Color accent;
+  final Color green;
+
+  const _RegistroTile({
+    required this.registro,
+    required this.cardColor,
+    required this.orange,
+    required this.accent,
+    required this.green,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final nombre = registro.nombreCompleto;
     final telefono = (registro.telefono ?? '').trim();
     final programa = (registro.programa ?? '').trim();
-    final folio = registro.folio; // "001", "095", etc.
-
-    final fecha = registro.fechaRegistro; // non-null en el modelo
+    final folio = registro.folio;
+    final fecha = registro.fechaRegistro;
     final df = DateFormat('dd/MM/yyyy HH:mm', 'es_MX');
     final fechaStr = df.format(fecha);
-
     final asistio = registro.asistio == true;
 
     return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: cardColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: orange.withOpacity(0.3)),
+      ),
       child: ListTile(
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         leading: CircleAvatar(
+          backgroundColor: orange.withOpacity(0.9),
           child: Text(
             (nombre.isNotEmpty ? nombre[0] : '#').toUpperCase(),
-            style: const TextStyle(fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
           ),
         ),
         title: Text(
           nombre.isNotEmpty ? nombre : 'Sin nombre',
-          style: const TextStyle(fontWeight: FontWeight.w600),
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (telefono.isNotEmpty) Text(telefono),
+            if (telefono.isNotEmpty)
+              Text(
+                telefono,
+                style: const TextStyle(color: Colors.white70),
+              ),
+            const SizedBox(height: 4),
             Wrap(
-              spacing: 8,
+              spacing: 6,
               runSpacing: -4,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 if (programa.isNotEmpty)
                   Chip(
+                    backgroundColor: orange.withOpacity(0.15),
                     label: Text(
                       programa,
                       overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.orangeAccent),
                     ),
                     visualDensity: VisualDensity.compact,
+                    side: BorderSide(color: orange.withOpacity(0.4)),
                   ),
                 Chip(
-                  label: Text('ID: $folio'),
-                  avatar: const Icon(Icons.confirmation_number_outlined, size: 16),
+                  backgroundColor: accent.withOpacity(0.15),
+                  label: Text(
+                    'ID: $folio',
+                    style: TextStyle(color: accent),
+                  ),
                   visualDensity: VisualDensity.compact,
                 ),
                 Chip(
-                  label: Text(fechaStr),
-                  avatar: const Icon(Icons.schedule, size: 16),
+                  backgroundColor: green.withOpacity(0.12),
+                  label: Text(
+                    fechaStr,
+                    style: TextStyle(
+                      color: green,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  avatar: Icon(Icons.schedule, size: 16, color: green),
                   visualDensity: VisualDensity.compact,
+                  side: BorderSide(color: green.withOpacity(0.3)),
                 ),
               ],
             ),
@@ -248,92 +327,61 @@ class _RegistroTile extends ConsumerWidget {
         ),
         trailing: _Badge(
           label: asistio ? 'Asistió' : 'Pendiente',
-          color: asistio ? Colors.blue : Colors.grey,
+          color: asistio ? green : orange,
           icon: asistio
               ? Icons.event_available_outlined
-              : Icons.hourglass_bottom,
+              : Icons.hourglass_bottom_outlined,
         ),
         onTap: () async {
           final confirmed = await showDialog<bool>(
             context: context,
-            useRootNavigator: false,           // 👈 clave con go_router + ShellRoute
-            barrierDismissible: false,         // opcional: evita pops “accidentales”
+            useRootNavigator: false,
+            barrierDismissible: false,
             builder: (ctx) => AlertDialog(
-              title: const Text('Confirmar asistencia'),
-              content: Text('¿Confirmar asistencia de "$nombre"?'),
+              backgroundColor: cardColor,
+              title: Text('Confirmar asistencia',
+                  style: TextStyle(color: orange)),
+              content: Text(
+                '¿Confirmar asistencia de "$nombre"?',
+                style: const TextStyle(color: Colors.white70),
+              ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(false),   // 👈 usa ctx
-                  child: const Text('Cancelar'),
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  child: const Text('Cancelar',
+                      style: TextStyle(color: Colors.white70)),
                 ),
                 ElevatedButton(
-                  onPressed: () => Navigator.of(ctx).pop(true),    // 👈 usa ctx
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: orange,
+                    foregroundColor: Colors.black,
+                  ),
+                  onPressed: () => Navigator.of(ctx).pop(true),
                   child: const Text('Sí, confirmar'),
                 ),
               ],
             ),
           );
-          
-          if (confirmed != true) return;        // 👈 si canceló o cerró, no sigas
-          
+
+          if (confirmed != true) return;
+
           await ref.read(registroProvider.notifier).update(
             registro.id,
             {'asistio': 1},
           );
-          
+
           if (!context.mounted) return;
-          
+
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Asistencia confirmada')),
+            SnackBar(
+              backgroundColor: cardColor,
+              content: Text(
+                '✅ Asistencia confirmada',
+                style: TextStyle(color: green),
+              ),
+            ),
           );
-
         },
-      ),
-    );
-  }
-}
-
-class _FiltersSummary extends StatelessWidget {
-  final DateTime? month;
-  final int? total;
-  final int visibles;
-  const _FiltersSummary({
-    required this.month,
-    required this.total,
-    required this.visibles,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final df = DateFormat('MMMM yyyy', 'es_MX');
-    final chips = <Widget>[];
-
-    if (month != null) {
-      chips.add(
-        Chip(
-          label: Text('Mes: ${df.format(month!)}'),
-          avatar: const Icon(Icons.calendar_today, size: 18),
-        ),
-      );
-    }
-
-    chips.add(
-      Chip(
-        label: Text('Mostrados: $visibles' + (total != null ? ' / $total' : '')),
-        avatar: const Icon(Icons.list_alt, size: 18),
-      ),
-    );
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: chips
-            .map((c) => Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: c,
-                ))
-            .toList(),
       ),
     );
   }
@@ -350,9 +398,9 @@ class _Badge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withOpacity(0.15),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.35)),
+        border: Border.all(color: color.withOpacity(0.4)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -373,6 +421,58 @@ class _Badge extends StatelessWidget {
   }
 }
 
+class _FiltersSummary extends StatelessWidget {
+  final DateTime? month;
+  final int? total;
+  final int visibles;
+  const _FiltersSummary({
+    required this.month,
+    required this.total,
+    required this.visibles,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final df = DateFormat('MMMM yyyy', 'es_MX');
+    final orange = const Color(0xFFFF6B00);
+
+    final chips = <Widget>[];
+
+    if (month != null) {
+      chips.add(
+        Chip(
+          backgroundColor: orange.withOpacity(0.15),
+          label: Text('Mes: ${df.format(month!)}',
+              style: const TextStyle(color: Colors.orangeAccent)),
+          avatar: const Icon(Icons.calendar_today, size: 18, color: Colors.orange),
+        ),
+      );
+    }
+
+    chips.add(
+      Chip(
+        backgroundColor: orange.withOpacity(0.1),
+        label: Text('Mostrados: $visibles${total != null ? ' / $total' : ''}',
+            style: const TextStyle(color: Colors.orangeAccent)),
+        avatar: const Icon(Icons.list_alt, size: 18, color: Colors.orange),
+      ),
+    );
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        children: chips
+            .map((c) => Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: c,
+                ))
+            .toList(),
+      ),
+    );
+  }
+}
+
 class _CenteredLoader extends StatelessWidget {
   final String label;
   const _CenteredLoader({required this.label});
@@ -382,10 +482,9 @@ class _CenteredLoader extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const SizedBox(height: 8),
-          const CircularProgressIndicator(),
+          const CircularProgressIndicator(color: Colors.orangeAccent),
           const SizedBox(height: 12),
-          Text(label),
+          Text(label, style: const TextStyle(color: Colors.white70)),
         ],
       ),
     );
@@ -399,14 +498,14 @@ class _EmptyState extends StatelessWidget {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.inbox_outlined, size: 40),
-          const SizedBox(height: 8),
-          const Text('Sin resultados'),
-          const SizedBox(height: 4),
+        children: const [
+          Icon(Icons.inbox_outlined, size: 40, color: Colors.orangeAccent),
+          SizedBox(height: 8),
+          Text('Sin resultados', style: TextStyle(color: Colors.white)),
+          SizedBox(height: 4),
           Text(
             'Ajusta tu búsqueda o filtros',
-            style: Theme.of(context).textTheme.bodySmall,
+            style: TextStyle(color: Colors.white70, fontSize: 13),
           ),
         ],
       ),
@@ -426,11 +525,18 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 40, color: Colors.redAccent),
+            const Icon(Icons.error_outline,
+                size: 40, color: Colors.redAccent),
             const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
+            Text(message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white70)),
             const SizedBox(height: 12),
             ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.black,
+              ),
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
               label: const Text('Reintentar'),
@@ -450,9 +556,10 @@ class _BottomLoader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Column(
         children: const [
-          CircularProgressIndicator(strokeWidth: 2),
+          CircularProgressIndicator(
+              strokeWidth: 2, color: Colors.orangeAccent),
           SizedBox(height: 8),
-          Text('Cargando más…'),
+          Text('Cargando más…', style: TextStyle(color: Colors.white70)),
         ],
       ),
     );

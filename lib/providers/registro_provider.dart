@@ -216,9 +216,43 @@ class RegistroNotifier extends StateNotifier<RegistroState> {
     await refresh();
   }
 
-  Future<void> confirmarAsistencia(int id) async {
-    await update(id, {'asistio': 1});
+Future<String> confirmarAsistencia(int id) async {
+  try {
+    final r = await _dio.put('/update/$id', data: {'asistio': 1}, cancelToken: _cancel);
+
+    // ✅ Si la API responde con 200, lo tratamos como éxito aunque no haya message
+    if (r.statusCode == 200) {
+      final data = r.data;
+
+      // Si el backend devuelve un campo asistio=1, confirmamos éxito
+      if (data is Map && (data['asistio'] == 1 || data['asistio'] == true)) {
+        await refresh();
+        return 'ok';
+      }
+
+      // Si el backend incluyera un mensaje
+      if (data is Map && data.containsKey('message')) {
+        final message = data['message'].toString().toLowerCase();
+        if (message.contains('ya confirmada')) {
+          return 'ya_confirmada';
+        }
+      }
+
+      // En caso contrario, igual se considera éxito
+      await refresh();
+      return 'ok';
+    }
+
+    // Si el status no fue 200, marcamos error
+    return 'error';
+  } catch (e) {
+    final msg = e.toString().toLowerCase();
+    if (msg.contains('ya confirmada')) {
+      return 'ya_confirmada';
+    }
+    rethrow;
   }
+}
 
   @override
   void dispose() {

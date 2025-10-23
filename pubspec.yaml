@@ -31,12 +31,24 @@ dependencies:
   flutter:
     sdk: flutter
 
-  go_router: ^16.2.4     # esto aún puede funcionar, pero ojo: hay versiones más nuevas de go_router en pub.dev :contentReference[oaicite:1]{index=1}  
-  hive: ^2.2.3           # esto sí existe y es estable :contentReference[oaicite:2]{index=2}  
-  hive_flutter: ^1.1.0   # cambiar a esta versión estable  
-  mobile_scanner: 7.1.2
-  lottie: ^3.3.2
+  # Navegación y estructura
+  go_router: ^16.2.4     
+
+  # Persistencia
+  hive: ^2.2.3           
+  hive_flutter: ^1.1.0   
+
+  # Escáner QR
+  mobile_scanner: ^7.1.2
+
+  # Animaciones Lottie (ajustado para evitar conflicto con excel)
+  lottie: ^3.3.0          # 👈 versión compatible con excel
+
+  # Estado y manejo de datos
   flutter_riverpod: ^3.0.3
+  provider: ^6.1.5+1
+
+  # Misceláneo
   fluttertoast: ^9.0.0
   cupertino_icons: ^1.0.8
   uuid: ^4.5.1
@@ -44,9 +56,15 @@ dependencies:
   http: ^1.5.0
   flutter_dotenv: ^6.0.0
   flutter_secure_storage: ^9.2.4
-  provider: ^6.1.5+1
   dio: ^5.7.0
   diacritic: ^0.1.6
+
+  # 📊 Reportes y exportación
+  fl_chart: ^1.1.1
+  excel: ^4.0.6
+  path_provider: ^2.1.2   # 👈 necesario para guardar Excel en almacenamiento
+  open_filex: ^4.3.4   # 👈 para abrir archivos guardados
+  flutter_launcher_icons: ^0.14.4
 
 
 dev_dependencies:
@@ -73,7 +91,14 @@ flutter:
     - lib/assets/animations/hi.json
     - lib/assets/animations/goshh.json
     - lib/assets/animations/pamkin.json
+    - lib/assets/animations/success_pumpkin.json
+    - lib/assets/animations/pamkinscreen.json
     - .env
+    - lib/assets/images/bats_left.png
+    - lib/assets/images/bats_right.png
+    - lib/assets/images/web_corner.png
+    - lib/assets/images/web_corner2.png
+
 
 
   # To add assets to your application, add an assets section, like this:
@@ -106,3 +131,8 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "lib/assets/images/icon.png"
+  remove_alpha_ios: true

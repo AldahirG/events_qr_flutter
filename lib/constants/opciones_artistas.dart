@@ -1,0 +1,17 @@
+final List<String> opcionesArtistas = [
+  'Nicolas Haza',
+  'Tadeo Bonavides',
+  'Matías Gruener',
+  'Angelo',
+  'Dr. Gabush',
+  'Arath Aquino',
+  'FreeKids',
+  'Gabo Maynez',
+  'Juanse Laverde',
+  'Sarah Salgado',
+  'Blazquez',
+  'Enzo Durand',
+  'Rodrigo Glez',
+  'Sebastian Duarte',
+  'Ninguno de los anteriores',
+];
