@@ -16,7 +16,10 @@ class ReportesScreen extends ConsumerStatefulWidget {
 class _ReportesScreenState extends ConsumerState<ReportesScreen> {
   final Map<String, bool> _sortDescending = {};
   bool _showCharts = false;
-  int _displayedCount = 0; // 🔢 contador animado
+
+  // 🔢 Animación del contador
+  int _displayedCount = 0;
+  int _lastConfirmedCount = 0;
   Timer? _counterTimer;
 
   @override
@@ -32,17 +35,23 @@ class _ReportesScreenState extends ConsumerState<ReportesScreen> {
   }
 
   void _animateCount(int target) {
+    if (target == _lastConfirmedCount) return; // ✅ evita reanimar innecesariamente
     _counterTimer?.cancel();
-    const duration = Duration(milliseconds: 1500);
-    final steps = 40;
+    _lastConfirmedCount = target;
+
+    const duration = Duration(milliseconds: 1200);
+    const steps = 40;
     int step = 0;
     final increment = (target / steps).clamp(1, double.infinity);
+
     _counterTimer = Timer.periodic(duration ~/ steps, (timer) {
       step++;
-      setState(() {
-        _displayedCount = (step * increment).clamp(0, target.toDouble()).toInt();
-      });
-      if (step >= steps) timer.cancel();
+      final value = (step * increment).clamp(0, target.toDouble()).toInt();
+      setState(() => _displayedCount = value);
+      if (step >= steps) {
+        _displayedCount = target;
+        timer.cancel();
+      }
     });
   }
 
@@ -80,7 +89,6 @@ class _ReportesScreenState extends ConsumerState<ReportesScreen> {
         data: (data) {
           if (data.isEmpty) return _buildEmptyState(notifier);
 
-          // 🧡 Total de asistencias confirmadas animado
           final confirmed = data['confirmedAssistances'];
           int totalConfirmadas = 0;
           if (confirmed is List) {
@@ -89,7 +97,11 @@ class _ReportesScreenState extends ConsumerState<ReportesScreen> {
               (sum, e) => sum + ((e['total'] ?? 0) as num).toInt(),
             );
           }
-          _animateCount(totalConfirmadas);
+
+          // ✅ animar solo después de renderizar
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _animateCount(totalConfirmadas);
+          });
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -147,7 +159,7 @@ class _ReportesScreenState extends ConsumerState<ReportesScreen> {
       duration: const Duration(milliseconds: 400),
       child: !_showCharts
           ? _buildSortableTableSection(title, sortedList, key, isDesc)
-          : _buildPieSection(title, sortedList),
+          : _buildAdaptiveChart(title, sortedList),
     );
   }
 
@@ -232,58 +244,153 @@ class _ReportesScreenState extends ConsumerState<ReportesScreen> {
     );
   }
 
-  // 🔸 Gráfica de pastel
-  Widget _buildPieSection(String title, dynamic list) {
-    if (list == null || list is! List || list.isEmpty) return const SizedBox.shrink();
+  // 📊 Gráfica adaptativa (pastel o barras)
+  Widget _buildAdaptiveChart(String title, List<dynamic> list) {
+    if (list.isEmpty) return const SizedBox.shrink();
 
     final total = list.fold<num>(0, (sum, e) => sum + ((e['total'] ?? 0) as num));
+    final isMany = list.length > 5;
 
     final colors = [
       const Color(0xFFFF6C00),
-      const Color(0xFF9B59B6),
       const Color(0xFF00FF9C),
+      const Color(0xFF9B59B6),
       const Color(0xFFFF007F),
       const Color(0xFF00CFFF),
+      const Color(0xFFFFD60A),
+      const Color(0xFF2ECC71),
+      const Color(0xFF3498DB),
+      const Color(0xFFE74C3C),
     ];
 
     return Card(
       color: const Color(0xFF1A1A2E),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      elevation: 4,
+      elevation: 5,
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(title,
+                textAlign: TextAlign.center,
                 style: const TextStyle(
                     color: Colors.orangeAccent,
                     fontSize: 18,
                     fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            SizedBox(
-              height: 180,
-              child: PieChart(
-                PieChartData(
-                  sectionsSpace: 3,
-                  centerSpaceRadius: 40,
-                  sections: List.generate(list.length, (i) {
-                    final e = list[i];
-                    final valor = (e['total'] ?? 0) as num;
-                    final porcentaje = total == 0 ? 0 : (valor / total * 100);
-                    return PieChartSectionData(
-                      color: colors[i % colors.length],
-                      value: valor.toDouble(),
-                      title: '${porcentaje.toStringAsFixed(1)}%',
-                      radius: 55,
-                      titleStyle: const TextStyle(
-                          color: Colors.black,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold),
-                    );
-                  }),
+            const SizedBox(height: 14),
+
+            if (isMany)
+              SizedBox(
+                height: (list.length * 38).clamp(180, 400).toDouble(),
+                child: BarChart(
+                  BarChartData(
+                    gridData: FlGridData(show: false),
+                    borderData: FlBorderData(show: false),
+                    titlesData: FlTitlesData(
+                      leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 40,
+                          getTitlesWidget: (value, meta) {
+                            final i = value.toInt();
+                            if (i < 0 || i >= list.length) return const SizedBox();
+                            final label = list[i].values.first.toString();
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                label.length > 10 ? '${label.substring(0, 10)}…' : label,
+                                style: const TextStyle(color: Colors.white70, fontSize: 10),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    barGroups: List.generate(list.length, (i) {
+                      final e = list[i];
+                      final valor = (e['total'] ?? 0) as num;
+                      return BarChartGroupData(
+                        x: i,
+                        barRods: [
+                          BarChartRodData(
+                            toY: valor.toDouble(),
+                            color: colors[i % colors.length],
+                            width: 18,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ],
+                      );
+                    }),
+                  ),
+                ),
+              )
+            else
+              SizedBox(
+                height: 220,
+                child: PieChart(
+                  PieChartData(
+                    sectionsSpace: 3,
+                    centerSpaceRadius: 45,
+                    sections: List.generate(list.length, (i) {
+                      final e = list[i];
+                      final valor = (e['total'] ?? 0) as num;
+                      final label = e.values.first.toString();
+                      final porcentaje = total == 0 ? 0 : (valor / total * 100);
+                      return PieChartSectionData(
+                        color: colors[i % colors.length],
+                        value: valor.toDouble(),
+                        title:
+                            '${label.length > 10 ? label.substring(0, 10) + "…" : label}\n${porcentaje.toStringAsFixed(1)}%',
+                        radius: 60,
+                        titleStyle: const TextStyle(
+                            color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold),
+                      );
+                    }),
+                  ),
                 ),
               ),
+
+            const SizedBox(height: 12),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 10,
+              runSpacing: 6,
+              children: List.generate(list.length, (i) {
+                final e = list[i];
+                final label = e.values.first.toString();
+                final valor = (e['total'] ?? 0) as num;
+                final porcentaje = total == 0 ? 0 : (valor / total * 100);
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: colors[i % colors.length],
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$label (${valor.toInt()} / ${porcentaje.toStringAsFixed(1)}%)',
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ],
+                );
+              }),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: Text('Total: ${total.toInt()}',
+                  style: const TextStyle(
+                      color: Colors.orangeAccent,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600)),
             ),
           ],
         ),
@@ -315,9 +422,7 @@ class _ReportesScreenState extends ConsumerState<ReportesScreen> {
                 '$title: $total',
                 key: ValueKey(total),
                 style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold),
+                    color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -379,8 +484,7 @@ class _ReportesScreenState extends ConsumerState<ReportesScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.analytics_outlined,
-              size: 60, color: Colors.orangeAccent),
+          const Icon(Icons.analytics_outlined, size: 60, color: Colors.orangeAccent),
           const SizedBox(height: 12),
           const Text('Sin datos aún',
               style: TextStyle(color: Colors.white70, fontSize: 16)),

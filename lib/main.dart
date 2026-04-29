@@ -1,3 +1,4 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,10 +9,8 @@ import 'models/event.dart';
 import 'app_router.dart';
 
 Future<void> main() async {
-  // 🧩 Asegura que Flutter esté inicializado antes de usar plugins
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 🌍 Cargar variables de entorno (.env)
   try {
     await dotenv.load(fileName: ".env");
     debugPrint('✅ .env cargado: BASE_URL=${dotenv.env['BASE_URL']}');
@@ -20,10 +19,8 @@ Future<void> main() async {
     debugPrintStack(stackTrace: st);
   }
 
-  // 🕓 Inicializar localización (importante para fechas)
   await initializeDateFormatting('es', null);
 
-  // 🐝 Inicializar Hive y abrir cajas
   await Hive.initFlutter();
   if (!Hive.isAdapterRegistered(0)) {
     Hive.registerAdapter(EventAdapter());
@@ -31,19 +28,20 @@ Future<void> main() async {
   await Hive.openBox<Event>('events');
   await Hive.openBox('settings');
 
-  // 🚀 Ejecutar la app con Riverpod
   runApp(const ProviderScope(child: HalloweenFestApp()));
 }
 
-class HalloweenFestApp extends StatelessWidget {
+class HalloweenFestApp extends ConsumerWidget {
   const HalloweenFestApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(routerProvider);
+
     return MaterialApp.router(
       title: 'Halloween Fest 🎃',
       debugShowCheckedModeBanner: false,
-      routerConfig: appRouter,
+      routerConfig: router,
       theme: ThemeData(
         useMaterial3: true,
         fontFamily: 'Roboto',

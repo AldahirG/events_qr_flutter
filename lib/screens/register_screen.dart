@@ -47,7 +47,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         'artista': limpiarTexto(_artista),
         'disfraz': _disfraz,
         'fechaRegistro': DateTime.now().toIso8601String(),
-        'invito': _nombreInvito,
+        'promotor': _nombreInvito,
         'programa': _programa, // 👈 agregado
         'comoEnteroEvento': _comoEnteroEvento,
         'asistio': 1,

@@ -1,18 +1,23 @@
+// lib/screens/splash_screen.dart
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lottie/lottie.dart';
 
-class SplashScreen extends StatefulWidget {
+import '../providers/auth_provider.dart';
+
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
+class _SplashScreenState extends ConsumerState<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _fadeController;
   late final Animation<double> _fadeAnimation;
+  bool _navigated = false;
 
   @override
   void initState() {
@@ -22,7 +27,6 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     );
-
     _fadeAnimation =
         CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut);
 
@@ -30,12 +34,19 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _startSplash() async {
-    await _fadeController.forward();
+    // Start auth check and animation in parallel – TickerFuture can't go in
+    // Future.wait, so kick off the animation and await each separately.
+    final authFuture = ref.read(authProvider.notifier).initialize();
+    _fadeController.forward(); // fire-and-forget (TickerFuture)
+    await authFuture;
+    _navigateAway();
+  }
 
-    // 🎬 Esperar a que la animación Lottie termine o máximo 5s
-    await Future.delayed(const Duration(seconds: 5));
-
-    if (mounted) context.go('/home');
+  void _navigateAway() {
+    if (_navigated || !mounted) return;
+    _navigated = true;
+    // Redirect guard in GoRouter will intercept and send to /login if needed.
+    context.go('/home');
   }
 
   @override
@@ -55,20 +66,15 @@ class _SplashScreenState extends State<SplashScreen>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // 🎃 Lottie de pantalla completa
             Lottie.asset(
               'lib/assets/animations/pamkinscreen.json',
               fit: BoxFit.cover,
-              repeat: false, // 👈 que se reproduzca solo una vez
+              repeat: false,
               onLoaded: (composition) {
-                // ⏱️ Sincroniza la duración del Lottie con la transición
-                Future.delayed(composition.duration, () {
-                  if (mounted) context.go('/home');
-                });
+                // Fallback: navigate when animation ends if _startSplash hasn't yet.
+                Future.delayed(composition.duration, _navigateAway);
               },
             ),
-
-            // ✨ Texto inferior con glow animado
             Align(
               alignment: Alignment.bottomCenter,
               child: Padding(
