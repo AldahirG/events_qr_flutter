@@ -3,15 +3,35 @@ import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../providers/app_event_provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/auth_service.dart';
 import 'config.dart';
 
 final baseUrlProvider = Provider<String>((ref) {
-  if (!dotenv.isInitialized) return 'http://10.0.2.2:3002/api/registros/';
-  return dotenv.env['BASE_URL']?.trim().isNotEmpty == true
-      ? dotenv.env['BASE_URL']!.trim()
-      : 'http://10.0.2.2:3002/api/registros/';
+  final event = ref.watch(appEventProvider);
+
+  String _normalize(String url) {
+    final trimmed = url.trim();
+    return trimmed.endsWith('/') ? trimmed : '$trimmed/';
+  }
+
+  if (event == AppEvent.halloween) {
+    final url = dotenv.isInitialized
+        ? (dotenv.env['HALLOWEEN_URL']?.trim() ?? '')
+        : '';
+    return url.isNotEmpty
+        ? _normalize(url)
+        : 'http://10.0.11.75:3000/api/halloween/registros/';
+  }
+
+  // Conferencias — use BASE_URL as-is (backward compatible)
+  final url = dotenv.isInitialized
+      ? (dotenv.env['BASE_URL']?.trim() ?? '')
+      : '';
+  return url.isNotEmpty
+      ? _normalize(url)
+      : 'http://10.0.11.75:3000/api/qr/registros/';
 });
 
 final dioProvider = Provider<Dio>((ref) {

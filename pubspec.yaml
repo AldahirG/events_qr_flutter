@@ -85,19 +85,9 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - lib/assets/animations/Welcum.json
-    - lib/assets/animations/success.json
-    - lib/assets/animations/done.json
-    - lib/assets/animations/hi.json
-    - lib/assets/animations/goshh.json
-    - lib/assets/animations/pamkin.json
-    - lib/assets/animations/success_pumpkin.json
-    - lib/assets/animations/pamkinscreen.json
+    - lib/assets/animations/
+    - lib/assets/images/
     - .env
-    - lib/assets/images/bats_left.png
-    - lib/assets/images/bats_right.png
-    - lib/assets/images/web_corner.png
-    - lib/assets/images/web_corner2.png
 
 
 

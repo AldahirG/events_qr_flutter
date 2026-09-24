@@ -7,6 +7,8 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'models/event.dart';
 import 'app_router.dart';
+import 'core/app_theme.dart';
+import 'providers/app_event_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,45 +30,22 @@ Future<void> main() async {
   await Hive.openBox<Event>('events');
   await Hive.openBox('settings');
 
-  runApp(const ProviderScope(child: HalloweenFestApp()));
+  runApp(const ProviderScope(child: CheckQrApp()));
 }
 
-class HalloweenFestApp extends ConsumerWidget {
-  const HalloweenFestApp({super.key});
+class CheckQrApp extends ConsumerWidget {
+  const CheckQrApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
+    final event = ref.watch(appEventProvider);
 
     return MaterialApp.router(
-      title: 'Halloween Fest 🎃',
+      title: 'CheckQR UNINTER',
       debugShowCheckedModeBanner: false,
       routerConfig: router,
-      theme: ThemeData(
-        useMaterial3: true,
-        fontFamily: 'Roboto',
-        scaffoldBackgroundColor: const Color(0xFF12101C),
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepOrange,
-          brightness: Brightness.dark,
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF1E1B2D),
-          titleTextStyle: TextStyle(
-            color: Color(0xFFFF6B00),
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-          iconTheme: IconThemeData(color: Colors.orangeAccent),
-          centerTitle: true,
-          elevation: 2,
-        ),
-        snackBarTheme: const SnackBarThemeData(
-          backgroundColor: Color(0xFF1E1B2D),
-          contentTextStyle: TextStyle(color: Colors.white),
-          behavior: SnackBarBehavior.floating,
-        ),
-      ),
+      theme: event == AppEvent.halloween ? buildHalloweenTheme() : buildAppTheme(),
     );
   }
 }

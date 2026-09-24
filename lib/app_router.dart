@@ -3,7 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'core/app_theme.dart';
+import 'providers/app_event_provider.dart';
 import 'providers/auth_provider.dart';
+import 'providers/evento_activo_provider.dart';
+import 'providers/registro_conferencia_provider.dart';
+import 'screens/event_selector_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/scanner_screen.dart';
@@ -11,6 +16,7 @@ import 'screens/list_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/show_info_screen.dart';
 import 'screens/reportes_screen.dart';
+import 'screens/settings_screen.dart';
 import 'screens/splash_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -22,29 +28,34 @@ class _RouterNotifier extends ChangeNotifier {
 
   String? redirect(BuildContext context, GoRouterState state) {
     final auth = _ref.read(authProvider);
+    final eventConfirmed = _ref.read(eventConfirmedProvider);
     final isInitial = auth.status == AuthStatus.initial;
     final isAuthenticated = auth.status == AuthStatus.authenticated;
-    final isOnSplash = state.matchedLocation == '/splash';
-    final isOnLogin = state.matchedLocation == '/login';
+    final loc = state.matchedLocation;
 
-    if (isInitial || isOnSplash) return null;
-    if (!isAuthenticated && !isOnLogin) return '/login';
-    if (isAuthenticated && isOnLogin) return '/home';
+    // Must pick an event before anything else.
+    if (!eventConfirmed) {
+      return loc == '/event-selector' ? null : '/event-selector';
+    }
+    if (loc == '/event-selector') return '/splash';
+
+    if (isInitial || loc == '/splash') return null;
+    if (!isAuthenticated && loc != '/login') return '/login';
+    if (isAuthenticated && loc == '/login') return '/home';
     return null;
   }
 }
 
-// Provider (not ChangeNotifierProvider) – ref.listen is the Riverpod-3-safe way
-// to wire auth state changes to GoRouter's refreshListenable.
 final _routerNotifierProvider = Provider<_RouterNotifier>((ref) {
   final notifier = _RouterNotifier(ref);
   ref.listen<AuthState>(authProvider, (_, __) => notifier.notifyListeners());
+  ref.listen<bool>(eventConfirmedProvider, (_, __) => notifier.notifyListeners());
   ref.onDispose(notifier.dispose);
   return notifier;
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Router provider – single GoRouter instance for the entire app
+// Router provider
 // ─────────────────────────────────────────────────────────────────────────────
 final routerProvider = Provider<GoRouter>((ref) {
   final notifier = ref.watch(_routerNotifierProvider);
@@ -54,7 +65,16 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: notifier,
     redirect: notifier.redirect,
     routes: [
-      // ── Auth ────────────────────────────────────────────────────────────
+      GoRoute(
+        path: '/event-selector',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const EventSelectorScreen(),
+          transitionDuration: const Duration(milliseconds: 500),
+          transitionsBuilder: (context, animation, _, child) =>
+              FadeTransition(opacity: animation, child: child),
+        ),
+      ),
       GoRoute(
         path: '/login',
         pageBuilder: (context, state) => CustomTransitionPage(
@@ -65,8 +85,6 @@ final routerProvider = Provider<GoRouter>((ref) {
               FadeTransition(opacity: animation, child: child),
         ),
       ),
-
-      // ── Splash ──────────────────────────────────────────────────────────
       GoRoute(
         path: '/splash',
         pageBuilder: (context, state) => CustomTransitionPage(
@@ -78,16 +96,13 @@ final routerProvider = Provider<GoRouter>((ref) {
                 opacity: animation,
                 child: ScaleTransition(
                   scale: Tween<double>(begin: 1.1, end: 1.0).animate(
-                    CurvedAnimation(
-                        parent: animation, curve: Curves.easeOut),
+                    CurvedAnimation(parent: animation, curve: Curves.easeOut),
                   ),
                   child: child,
                 ),
               ),
         ),
       ),
-
-      // ── Protected routes (with BottomNavigationBar) ──────────────────────
       ShellRoute(
         builder: (context, state, child) =>
             ScaffoldWithNavBar(child: child),
@@ -97,6 +112,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/list', builder: (c, s) => const ListScreen()),
           GoRoute(path: '/register', builder: (c, s) => const RegisterScreen()),
           GoRoute(path: '/reportes', builder: (c, s) => const ReportesScreen()),
+          GoRoute(path: '/settings', builder: (c, s) => const SettingsScreen()),
           GoRoute(
             path: '/show-info/:id',
             builder: (c, s) {
@@ -113,25 +129,24 @@ final routerProvider = Provider<GoRouter>((ref) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Bottom navigation scaffold
 // ─────────────────────────────────────────────────────────────────────────────
-const _tabPaths = ['/home', '/scanner', '/list', '/register', '/reportes'];
+const _tabPaths = [
+  '/home',
+  '/list',
+  '/register',
+  '/scanner',
+  '/reportes',
+  '/settings',
+];
 
 class ScaffoldWithNavBar extends ConsumerWidget {
   final Widget child;
   const ScaffoldWithNavBar({required this.child, super.key});
 
   int _locationToIndex(String location) {
+    // /show-info sub-route belongs to the list tab
+    if (location.startsWith('/show-info')) return 1;
     final idx = _tabPaths.indexWhere((p) => location.startsWith(p));
     return idx < 0 ? 0 : idx;
-  }
-
-  void _onItemTapped(BuildContext context, int index) {
-    final path = _tabPaths[index];
-    final current = GoRouter.of(context)
-        .routerDelegate
-        .currentConfiguration
-        .uri
-        .toString();
-    if (current != path) GoRouter.of(context).go(path);
   }
 
   @override
@@ -143,28 +158,101 @@ class ScaffoldWithNavBar extends ConsumerWidget {
         .toString();
     final currentIndex = _locationToIndex(current);
 
+    final activeEvent = ref.watch(appEventProvider);
+    final isHalloween = activeEvent == AppEvent.halloween;
+
     return Scaffold(
       body: child,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: currentIndex,
-        onTap: (i) => _onItemTapped(context, i),
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: const Color(0xFF1A1A2E),
-        selectedItemColor: Colors.orangeAccent,
-        unselectedItemColor: Colors.white70,
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.home_rounded), label: 'Inicio'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.qr_code_scanner_rounded), label: 'Scanner'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.list_alt_rounded), label: 'Registros'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.person_add_alt_1_rounded), label: 'Registrar'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.pie_chart_rounded), label: 'Reportes'),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Thin event indicator strip
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            color: activeEvent == AppEvent.halloween
+                ? const Color(0xFF1A0A2E)
+                : AppColors.primaryDark,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  activeEvent == AppEvent.halloween
+                      ? Icons.whatshot_rounded
+                      : Icons.event_rounded,
+                  size: 12,
+                  color: activeEvent == AppEvent.halloween
+                      ? const Color(0xFFFF6D00)
+                      : Colors.white70,
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  activeEvent.displayName,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: activeEvent == AppEvent.halloween
+                        ? const Color(0xFFE8D5FF)
+                        : Colors.white70,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          NavigationBar(
+        selectedIndex: currentIndex,
+        onDestinationSelected: (i) {
+          final path = _tabPaths[i];
+          if (current != path) GoRouter.of(context).go(path);
+          // Refresh registros whenever home tab is selected (stale data).
+          if (i == 0) {
+            final evento = ref.read(eventoActivoProvider).eventoSeleccionado;
+            if (evento.isNotEmpty) {
+              ref.read(registroConferenciaProvider.notifier).refresh();
+            }
+          }
+        },
+        backgroundColor:
+            isHalloween ? HalloweenColors.surface : AppColors.card,
+        indicatorColor: isHalloween
+            ? HalloweenColors.secondary.withValues(alpha: 0.2)
+            : AppColors.primary.withValues(alpha: 0.12),
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home_rounded),
+            label: 'Inicio',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.list_alt_outlined),
+            selectedIcon: Icon(Icons.list_alt_rounded),
+            label: 'Registros',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_add_alt_1_outlined),
+            selectedIcon: Icon(Icons.person_add_alt_1_rounded),
+            label: 'Registrar',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.qr_code_scanner_outlined),
+            selectedIcon: Icon(Icons.qr_code_scanner_rounded),
+            label: 'Scanner',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.how_to_reg_outlined),
+            selectedIcon: Icon(Icons.how_to_reg_rounded),
+            label: 'Asistencias',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.tune_outlined),
+            selectedIcon: Icon(Icons.tune_rounded),
+            label: 'Ajustes',
+          ),
         ],
       ),
+        ], // Column children end
+      ), // Column end
     );
   }
 }
