@@ -1,7 +1,6 @@
 // lib/screens/event_selector_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 
 import '../core/app_animations.dart';
@@ -97,7 +96,7 @@ class EventSelectorScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 16),
                       const Text(
-                        'Halloween Fest 23',
+                        'Halloween Fest 2026',
                         style: TextStyle(
                           color: Color(0xFFE8D5FF),
                           fontSize: 22,
@@ -124,10 +123,9 @@ class EventSelectorScreen extends ConsumerWidget {
 
   void _select(BuildContext context, WidgetRef ref, AppEvent event) {
     ref.read(appEventProvider.notifier).state = event;
+    // Setting eventConfirmedProvider triggers GoRouter redirect → /splash.
+    // Do NOT also call context.go() — that would create a duplicate history entry.
     ref.read(eventConfirmedProvider.notifier).state = true;
-    // GoRouter redirect fires automatically (eventConfirmedProvider listener).
-    // Fallback explicit navigation in case redirect doesn't fire immediately.
-    context.go('/splash');
   }
 
   Widget _lottieOrIcon(String asset, IconData fallback, Color color) {

@@ -27,12 +27,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final isHalloween = appEvent == AppEvent.halloween;
 
     final total = registros.all.length;
-    final confirmados = registros.all.where((r) => r.asistioConfirmado).length;
+    final confirmedList = registros.all.where((r) => r.asistioConfirmado).toList();
+    final confirmados = confirmedList.length;
+    final acompanantesConfirmados = confirmedList.fold<int>(0, (s, r) => s + (r.acompanantes ?? 0));
 
     if (isHalloween) {
       return _HalloweenHome(
         total: total,
         confirmados: confirmados,
+        acompanantesConfirmados: acompanantesConfirmados,
         isLoading: registros.isLoading,
         error: registros.errorMessage,
         onRefresh: () =>
@@ -179,6 +182,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 class _HalloweenHome extends ConsumerWidget {
   final int total;
   final int confirmados;
+  final int acompanantesConfirmados;
   final bool isLoading;
   final String? error;
   final VoidCallback onRefresh;
@@ -186,6 +190,7 @@ class _HalloweenHome extends ConsumerWidget {
   const _HalloweenHome({
     required this.total,
     required this.confirmados,
+    required this.acompanantesConfirmados,
     required this.isLoading,
     required this.error,
     required this.onRefresh,
@@ -249,6 +254,7 @@ class _HalloweenHome extends ConsumerWidget {
             _HwStatsCard(
               total: total,
               confirmados: confirmados,
+              acompanantesConfirmados: acompanantesConfirmados,
               isLoading: isLoading,
               error: error,
               onRefresh: onRefresh,
@@ -309,6 +315,7 @@ class _HalloweenHome extends ConsumerWidget {
 class _HwStatsCard extends StatelessWidget {
   final int total;
   final int confirmados;
+  final int acompanantesConfirmados;
   final bool isLoading;
   final String? error;
   final VoidCallback onRefresh;
@@ -316,6 +323,7 @@ class _HwStatsCard extends StatelessWidget {
   const _HwStatsCard({
     required this.total,
     required this.confirmados,
+    required this.acompanantesConfirmados,
     required this.isLoading,
     required this.error,
     required this.onRefresh,
@@ -390,10 +398,9 @@ class _HwStatsCard extends StatelessWidget {
                   color: HalloweenColors.divider,
                 ),
                 Expanded(
-                  child: _HwStat(
-                    value: '$confirmados',
-                    label: 'Confirmados',
-                    color: HalloweenColors.success,
+                  child: _HwStatConfirmados(
+                    confirmados: confirmados,
+                    acompanantes: acompanantesConfirmados,
                   ),
                 ),
               ],
@@ -428,6 +435,55 @@ class _HwStat extends StatelessWidget {
           style: const TextStyle(
               color: HalloweenColors.textSub, fontSize: 12),
         ),
+      ],
+    );
+  }
+}
+
+class _HwStatConfirmados extends StatelessWidget {
+  final int confirmados;
+  final int acompanantes;
+  const _HwStatConfirmados(
+      {required this.confirmados, required this.acompanantes});
+
+  @override
+  Widget build(BuildContext context) {
+    const green = HalloweenColors.success;
+    final total = confirmados + acompanantes;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '$confirmados',
+          style: const TextStyle(
+            color: green,
+            fontSize: 32,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const Text(
+          'Confirmados',
+          style: TextStyle(color: HalloweenColors.textSub, fontSize: 12),
+        ),
+        if (acompanantes > 0) ...[
+          const SizedBox(height: 4),
+          Text(
+            '+ $acompanantes invitados',
+            style: const TextStyle(
+              color: HalloweenColors.secondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Text(
+            '= $total en evento',
+            style: const TextStyle(
+              color: green,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ],
     );
   }

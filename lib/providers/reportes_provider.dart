@@ -30,12 +30,14 @@ class ReportesNotifier extends StateNotifier<AsyncValue<Map<String, dynamic>>> {
       : _isHalloween = isHalloween,
         super(const AsyncValue.data({}));
 
-  Map<String, dynamic> get _q => _conferencista.isNotEmpty
-      ? {_isHalloween ? 'artista' : 'conferencista': _conferencista}
-      : {};
+  // Halloween: no filter → aggregate all records for the event.
+  // Conferencias: filter by selected conferencista.
+  Map<String, dynamic> get _q => _isHalloween
+      ? {}
+      : (_conferencista.isNotEmpty ? {'conferencista': _conferencista} : {});
 
   Future<void> fetchReportes() async {
-    if (_conferencista.isEmpty) {
+    if (!_isHalloween && _conferencista.isEmpty) {
       state = const AsyncValue.data({});
       return;
     }
@@ -48,6 +50,7 @@ class ReportesNotifier extends StateNotifier<AsyncValue<Map<String, dynamic>>> {
           ? {
               'promotores': 'estadisticas/promotor',
               'promotoresConf': 'estadisticas/promotor/confirmados',
+              'promotorImpacto': 'estadisticas/promotor/impacto',
               'programas': 'estadisticas/programa',
               'programasConf': 'estadisticas/programa/confirmados',
               'comoEntero': 'estadisticas/entero-evento',
@@ -121,9 +124,18 @@ class ReportesNotifier extends StateNotifier<AsyncValue<Map<String, dynamic>>> {
       sheet.appendRow([TextCellValue(sheetName)]);
       final lastRow = sheet.maxRows - 1;
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: lastRow))
-        ..cellStyle = cellHeader;
+          .cellStyle = cellHeader;
 
-      if (value is List && value.isNotEmpty) {
+      if (value is Map && value.isNotEmpty) {
+        // Flat key-value map (e.g. totalAsistencia: {registrados, acompanantes, total})
+        sheet.appendRow([TextCellValue('Campo'), TextCellValue('Valor')]);
+        for (final e in value.entries) {
+          sheet.appendRow([TextCellValue(e.key.toString()), TextCellValue('${e.value}')]);
+          final r = sheet.maxRows - 1;
+          sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: r)).cellStyle = cellRow;
+          sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: r)).cellStyle = cellRow;
+        }
+      } else if (value is List && value.isNotEmpty) {
         final keys = (value.first as Map).keys.toList();
         sheet.appendRow(keys.map((k) => TextCellValue(k.toString())).toList());
         for (var i = 0; i < keys.length; i++) {

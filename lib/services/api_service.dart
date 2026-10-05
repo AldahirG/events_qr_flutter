@@ -44,7 +44,7 @@ class ApiService {
       final res = await http.get(_uri(path)).timeout(timeout);
       return _processResponse(res);
     } on SocketException catch (e) {
-      throw ApiException('No hay conexión: \${e.message}');
+      throw ApiException('No hay conexión: ${e.message}');
     } on TimeoutException {
       throw ApiException('La petición tardó demasiado (timeout)');
     } catch (e) {
@@ -61,7 +61,7 @@ class ApiService {
           .timeout(timeout);
       return _processResponse(res);
     } on SocketException catch (e) {
-      throw ApiException('No hay conexión: \${e.message}');
+      throw ApiException('No hay conexión: ${e.message}');
     } on TimeoutException {
       throw ApiException('La petición tardó demasiado (timeout)');
     } catch (e) {
@@ -78,7 +78,7 @@ class ApiService {
           .timeout(timeout);
       return _processResponse(res);
     } on SocketException catch (e) {
-      throw ApiException('No hay conexión: \${e.message}');
+      throw ApiException('No hay conexión: ${e.message}');
     } on TimeoutException {
       throw ApiException('La petición tardó demasiado (timeout)');
     } catch (e) {
@@ -91,7 +91,7 @@ class ApiService {
       final res = await http.delete(_uri(path)).timeout(timeout);
       return _processResponse(res);
     } on SocketException catch (e) {
-      throw ApiException('No hay conexión: \${e.message}');
+      throw ApiException('No hay conexión: ${e.message}');
     } on TimeoutException {
       throw ApiException('La petición tardó demasiado (timeout)');
     } catch (e) {

@@ -289,6 +289,9 @@ class _ReportesScreenState extends ConsumerState<ReportesScreen>
                 _buildSection('Promotores', data['promotores'], 'promotores'),
                 _buildSection('Promotores (confirmados)',
                     data['promotoresConf'], 'promotoresConf'),
+                if (_hw)
+                  _buildImpactoSection(
+                      'Impacto por promotor', data['promotorImpacto']),
                 _buildSection('Programas de interés', data['programas'],
                     'programas'),
                 _buildSection('Programas (confirmados)',
@@ -885,6 +888,110 @@ class _ReportesScreenState extends ConsumerState<ReportesScreen>
   // ══════════════════════════════════════════════════════════════════════════
   // TAB 1 HELPERS
   // ══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildImpactoSection(String title, dynamic list) {
+    if (list == null || list is! List || list.isEmpty) return const SizedBox.shrink();
+    final rows = list.cast<Map<String, dynamic>>();
+    final totalConf  = rows.fold<int>(0, (s, r) => s + ((r['confirmados']  as num?)?.toInt() ?? 0));
+    final totalAcomp = rows.fold<int>(0, (s, r) => s + ((r['acompanantes'] as num?)?.toInt() ?? 0));
+    final totalGen   = totalConf + totalAcomp;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Card(
+        color: _surface,
+        elevation: 1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: _divCol),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(title,
+                  style: TextStyle(
+                      color: _accent,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text('Confirmados con asistentes en evento',
+                  style: TextStyle(color: _subCol, fontSize: 11)),
+              const SizedBox(height: 10),
+              // Header row
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                child: Row(
+                  children: [
+                    Expanded(child: Text('Promotor',
+                        style: TextStyle(color: _subCol, fontSize: 11, fontWeight: FontWeight.w700))),
+                    SizedBox(width: 52, child: Text('Conf.', textAlign: TextAlign.center,
+                        style: TextStyle(color: _subCol, fontSize: 11, fontWeight: FontWeight.w700))),
+                    SizedBox(width: 52, child: Text('Invit.', textAlign: TextAlign.center,
+                        style: TextStyle(color: _subCol, fontSize: 11, fontWeight: FontWeight.w700))),
+                    SizedBox(width: 52, child: Text('Total', textAlign: TextAlign.center,
+                        style: TextStyle(color: _subCol, fontSize: 11, fontWeight: FontWeight.w700))),
+                  ],
+                ),
+              ),
+              Container(height: 1, color: _divCol),
+              const SizedBox(height: 4),
+              ...rows.map((r) {
+                final conf  = (r['confirmados']  as num?)?.toInt() ?? 0;
+                final acomp = (r['acompanantes'] as num?)?.toInt() ?? 0;
+                final tot   = conf + acomp;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text('${r['promotor'] ?? '-'}',
+                            style: TextStyle(color: _textCol, fontSize: 13)),
+                      ),
+                      SizedBox(width: 52,
+                          child: Text('$conf', textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                  color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 13))),
+                      SizedBox(width: 52,
+                          child: Text('$acomp', textAlign: TextAlign.center,
+                              style: TextStyle(color: _accent, fontWeight: FontWeight.bold, fontSize: 13))),
+                      SizedBox(width: 52,
+                          child: Text('$tot', textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  color: _textCol, fontWeight: FontWeight.w900, fontSize: 13))),
+                    ],
+                  ),
+                );
+              }),
+              Container(height: 1, color: _divCol),
+              Padding(
+                padding: const EdgeInsets.only(top: 8, left: 4, right: 4),
+                child: Row(
+                  children: [
+                    Expanded(child: Text('Total:',
+                        style: TextStyle(color: _accent, fontWeight: FontWeight.bold, fontSize: 13))),
+                    SizedBox(width: 52,
+                        child: Text('$totalConf', textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 13))),
+                    SizedBox(width: 52,
+                        child: Text('$totalAcomp', textAlign: TextAlign.center,
+                            style: TextStyle(color: _accent, fontWeight: FontWeight.bold, fontSize: 13))),
+                    SizedBox(width: 52,
+                        child: Text('$totalGen', textAlign: TextAlign.center,
+                            style: TextStyle(
+                                color: _textCol, fontWeight: FontWeight.w900, fontSize: 13))),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSection(String title, dynamic list, String key) {
     if (list == null || list is! List || list.isEmpty) return const SizedBox.shrink();
 
@@ -1259,39 +1366,6 @@ class _ReportesScreenState extends ConsumerState<ReportesScreen>
                   color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500)),
         ],
       );
-
-  Widget _buildTotalCard(int total,
-      {String title = 'Total',
-      IconData icon = Icons.people_alt_rounded}) {
-    return Card(
-      color: _accent,
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: Colors.white, size: 28),
-            const SizedBox(width: 10),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 500),
-              transitionBuilder: (child, anim) =>
-                  ScaleTransition(scale: anim, child: child),
-              child: Text(
-                '$title: $total',
-                key: ValueKey(total),
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildExportButton(
       ReportesNotifier notifier, Map<String, dynamic> data) {

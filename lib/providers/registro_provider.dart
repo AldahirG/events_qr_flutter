@@ -1,7 +1,6 @@
 // lib/providers/registro_provider.dart
 
 import 'package:events_qr_flutter/core/api_client.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:diacritic/diacritic.dart';
 import 'package:flutter_riverpod/legacy.dart';

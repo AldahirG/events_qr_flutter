@@ -17,6 +17,7 @@ import 'screens/register_screen.dart';
 import 'screens/show_info_screen.dart';
 import 'screens/reportes_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/intro_screen.dart';
 import 'screens/splash_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -26,12 +27,17 @@ class _RouterNotifier extends ChangeNotifier {
   final Ref _ref;
   _RouterNotifier(this._ref);
 
+  void refresh() => notifyListeners();
+
   String? redirect(BuildContext context, GoRouterState state) {
     final auth = _ref.read(authProvider);
     final eventConfirmed = _ref.read(eventConfirmedProvider);
     final isInitial = auth.status == AuthStatus.initial;
     final isAuthenticated = auth.status == AuthStatus.authenticated;
     final loc = state.matchedLocation;
+
+    // Never interrupt the welcome intro.
+    if (loc == '/intro') return null;
 
     // Must pick an event before anything else.
     if (!eventConfirmed) {
@@ -48,8 +54,8 @@ class _RouterNotifier extends ChangeNotifier {
 
 final _routerNotifierProvider = Provider<_RouterNotifier>((ref) {
   final notifier = _RouterNotifier(ref);
-  ref.listen<AuthState>(authProvider, (_, __) => notifier.notifyListeners());
-  ref.listen<bool>(eventConfirmedProvider, (_, __) => notifier.notifyListeners());
+  ref.listen<AuthState>(authProvider, (_, __) => notifier.refresh());
+  ref.listen<bool>(eventConfirmedProvider, (_, __) => notifier.refresh());
   ref.onDispose(notifier.dispose);
   return notifier;
 });
@@ -61,10 +67,17 @@ final routerProvider = Provider<GoRouter>((ref) {
   final notifier = ref.watch(_routerNotifierProvider);
 
   return GoRouter(
-    initialLocation: '/splash',
+    initialLocation: '/intro',
     refreshListenable: notifier,
     redirect: notifier.redirect,
     routes: [
+      GoRoute(
+        path: '/intro',
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const IntroScreen(),
+        ),
+      ),
       GoRoute(
         path: '/event-selector',
         pageBuilder: (context, state) => CustomTransitionPage(

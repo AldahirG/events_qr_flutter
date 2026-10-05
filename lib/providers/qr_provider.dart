@@ -1,10 +1,10 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 import '../models/event.dart';
-import '../models/registro.dart';
 import '../providers/registro_provider.dart';
 
 final qrBoxProvider = Provider<Box<Event>>((ref) {
@@ -29,9 +29,7 @@ class QrListNotifier extends StateNotifier<List<Event>> {
 
   void load() {
     state = _box.values.toList()
-      ..sort(
-        (a, b) => (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)),
-      );
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
   Future<void> addFromQr(String qrValue, {String? name}) async {
@@ -45,7 +43,7 @@ class QrListNotifier extends StateNotifier<List<Event>> {
       final registroNotifier = ref.read(registroProvider.notifier);
       final registro = await registroNotifier.getById(id);
 
-      if (registro.asistio == true || registro.asistio == 1) {
+      if (registro.asistio == true) {
         throw Exception('Asistencia ya confirmada');
       }
 
@@ -61,7 +59,7 @@ class QrListNotifier extends StateNotifier<List<Event>> {
       await _box.put(localEvent.id, localEvent);
       load();
     } catch (e) {
-      print('Error al procesar QR: $e');
+      debugPrint('Error al procesar QR: $e');
       rethrow;
     }
   }

@@ -56,7 +56,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Color  _textCol   = AppColors.text;
   Color  _subCol    = AppColors.textSub;
   Color  _divCol    = AppColors.divider;
-  Color  _inputFill = AppColors.card;
 
   // ── Catalogs ────────────────────────────────────────────────────────────────
 
@@ -97,8 +96,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   ];
 
   static const _programasPorNivel = <String, List<String>>{
-    'SECUNDARIA': ['SIU MULTICULTURAL', 'SIU BILINGÜE'],
-    'BACHILLERATO': ['BIU MULTICULTURAL', 'BIU BILINGÜE', 'PREPA-A'],
+    'SECUNDARIA': ['SIU MULTICULTURAL', 'SIU BILINGÜE', 'TOV', 'OTRA'],
+    'BACHILLERATO': ['BIU MULTICULTURAL', 'BIU BILINGÜE', 'PREPA-A', 'TOV', 'OTRA'],
     'UNIVERSIDAD': [
       'Administración de Empresas (LAE)',
       'Administración de Empresas Turísticas (LAET)',
@@ -135,6 +134,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       'Relaciones Internacionales y Ciencias Políticas (RICP)',
       'Relaciones Internacionales y Economía (RIEC)',
       'Sistemas Computacionales (ISC)',
+      'OTRA',
     ],
     'POSGRADO': [
       'Doctorado en Administración',
@@ -159,6 +159,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       'Maestría en Línea de Administración y Dirección de Empresas (MADEL)',
       'Maestría en Mercadotecnia Global (MMG)',
       'Maestría en Redes de Computadoras y Tecnologías WEB (MARET)',
+      'OTRA',
     ],
     'EJECUTIVA': [
       'Administración de Negocios Internacionales (LEANI)',
@@ -168,6 +169,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       'Gestión Empresarial (LEGE)',
       'Mercadotecnia (LEMK)',
       'Mercadotecnia y Publicidad (LEMKP)',
+      'OTRA',
     ],
   };
 
@@ -260,7 +262,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _textCol   = isHalloween ? HalloweenColors.text     : AppColors.text;
     _subCol    = isHalloween ? HalloweenColors.textSub  : AppColors.textSub;
     _divCol    = isHalloween ? HalloweenColors.divider  : AppColors.divider;
-    _inputFill = isHalloween ? HalloweenColors.input    : AppColors.card;
 
     return Scaffold(
       backgroundColor: _bg,

@@ -34,6 +34,7 @@ class RegistroConferenciaState {
     List<RegistroConferencia>? all,
     List<RegistroConferencia>? items,
     String? errorMessage,
+    bool clearError = false,
     String? query,
     int? total,
   }) {
@@ -42,7 +43,7 @@ class RegistroConferenciaState {
       isPaginating: isPaginating ?? this.isPaginating,
       all: all ?? this.all,
       items: items ?? this.items,
-      errorMessage: errorMessage,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       query: query ?? this.query,
       total: total ?? this.total,
     );
@@ -104,7 +105,7 @@ class RegistroConferenciaNotifier
   Future<void> refresh() => _fetchList();
 
   Future<void> _fetchList() async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(isLoading: true, clearError: true);
     try {
       // GET /registros/?conferencista=X
       final res = await _dio.get('', queryParameters: _q, cancelToken: _cancel);
@@ -122,7 +123,7 @@ class RegistroConferenciaNotifier
         isLoading: false,
         all: list,
         total: list.length,
-        errorMessage: null,
+        clearError: true,
       );
       _applyFilters();
     } catch (e) {

@@ -36,8 +36,8 @@ const _invitadores = [
 ];
 
 const _programasPorNivel = <String, List<String>>{
-  'SECUNDARIA': ['SIU MULTICULTURAL', 'SIU BILINGÜE'],
-  'BACHILLERATO': ['BIU MULTICULTURAL', 'BIU BILINGÜE', 'PREPA-A'],
+  'SECUNDARIA': ['SIU MULTICULTURAL', 'SIU BILINGÜE', 'TOV', 'OTRA'],
+  'BACHILLERATO': ['BIU MULTICULTURAL', 'BIU BILINGÜE', 'PREPA-A', 'TOV', 'OTRA'],
   'UNIVERSIDAD': [
     'Administración de Empresas (LAE)',
     'Administración de Empresas Turísticas (LAET)',
@@ -60,6 +60,7 @@ const _programasPorNivel = <String, List<String>>{
     'Relaciones Internacionales y Ciencias Políticas (RICP)',
     'Relaciones Internacionales y Economía (RIEC)',
     'Sistemas Computacionales (ISC)',
+    'OTRA',
   ],
   'POSGRADO': [
     'Doctorado en Administración', 'Doctorado en Humanidades',
@@ -83,12 +84,14 @@ const _programasPorNivel = <String, List<String>>{
     'Maestría en Línea de Administración y Dirección de Empresas (MADEL)',
     'Maestría en Mercadotecnia Global (MMG)',
     'Maestría en Redes de Computadoras y Tecnologías WEB (MARET)',
+    'OTRA',
   ],
   'EJECUTIVA': [
     'Administración de Negocios Internacionales (LEANI)',
     'Administración y Mercadotecnia (LEAM)', 'Comercio Exterior (LECE)',
     'Derecho (LEDE)', 'Gestión Empresarial (LEGE)',
     'Mercadotecnia (LEMK)', 'Mercadotecnia y Publicidad (LEMKP)',
+    'OTRA',
   ],
 };
 

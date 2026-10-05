@@ -35,7 +35,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   Future<void> _startSplash() async {
     _fadeCtrl.forward();
-    // Run auth init and a minimum display time in parallel
     await Future.wait([
       ref.read(authProvider.notifier).initialize(),
       Future.delayed(const Duration(milliseconds: 1400)),
@@ -84,14 +83,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                           size: 120, color: HalloweenColors.secondary),
                     ),
                   ),
-                  // Dark overlay so text is readable
                   Container(color: Colors.black.withValues(alpha: 0.35)),
                   SafeArea(
                     child: Column(
                       children: [
                         const Spacer(),
                         Text(
-                          'Halloween Fest 23',
+                          'Halloween Fest 2026',
                           style: TextStyle(
                             fontSize: 28,
                             color: textColor,

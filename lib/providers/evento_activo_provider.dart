@@ -1,6 +1,5 @@
 // lib/providers/evento_activo_provider.dart
 import 'package:dio/dio.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
@@ -48,8 +47,9 @@ class EventoActivoNotifier extends StateNotifier<EventoActivoState> {
   final Dio _dio;
   final AppEvent _appEvent;
   static const _box = 'settings';
-  static const _keyEvento = 'eventoSeleccionado';
-  static const _keyMes = 'mesSeleccionado';
+  // Prefix keys by event type so Halloween and Conferencias never share state.
+  String get _keyEvento => 'eventoSeleccionado_${_appEvent.name}';
+  String get _keyMes    => 'mesSeleccionado_${_appEvent.name}';
 
   EventoActivoNotifier(this._dio, this._appEvent)
       : super(const EventoActivoState()) {

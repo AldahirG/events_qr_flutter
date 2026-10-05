@@ -2,11 +2,7 @@
 <!-- Android 12+ splash screen overrides -->
 <resources>
     <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
-        <!-- Dark background so the pumpkin icon reads clearly -->
         <item name="android:windowSplashScreenBackground">#0D0118</item>
-        <!-- Use the launcher icon as the splash icon (update via flutter_launcher_icons) -->
-        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
-        <!-- Remove the brand image / tagline area -->
         <item name="android:windowSplashScreenBrandingImage">@null</item>
     </style>
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
