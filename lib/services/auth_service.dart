@@ -1,10 +1,15 @@
 // lib/services/auth_service.dart
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+import '../providers/app_event_provider.dart';
 
 class AuthService {
   static const _tokenKey = 'access_token';
@@ -15,10 +20,10 @@ class AuthService {
   final FlutterSecureStorage _storage;
   late final Dio _authDio;
 
-  AuthService() : _storage = const FlutterSecureStorage() {
-    final rawBase = dotenv.isInitialized
-        ? (dotenv.env['BASE_URL']?.trim() ?? '')
-        : '';
+  AuthService({String? baseUrl}) : _storage = const FlutterSecureStorage() {
+    final rawBase = baseUrl?.trim().isNotEmpty == true
+        ? baseUrl!.trim()
+        : (dotenv.isInitialized ? (dotenv.env['BASE_URL']?.trim() ?? '') : '');
     final authBase = _deriveAuthBase(rawBase);
     _authDio = Dio(BaseOptions(
       baseUrl: authBase,
@@ -26,6 +31,11 @@ class AuthService {
       receiveTimeout: const Duration(seconds: 15),
       headers: {'Content-Type': 'application/json'},
     ));
+    (_authDio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
+      final client = HttpClient();
+      client.badCertificateCallback = (cert, host, port) => true;
+      return client;
+    };
   }
 
   // Derives auth base from BASE_URL.
@@ -139,4 +149,13 @@ class AuthService {
   }
 }
 
-final authServiceProvider = Provider<AuthService>((ref) => AuthService());
+final authServiceProvider = Provider<AuthService>((ref) {
+  final event = ref.watch(appEventProvider);
+  final isHalloween = event == AppEvent.halloween;
+  final url = dotenv.isInitialized
+      ? (isHalloween
+          ? (dotenv.env['HALLOWEEN_URL']?.trim() ?? '')
+          : (dotenv.env['BASE_URL']?.trim() ?? ''))
+      : '';
+  return AuthService(baseUrl: url);
+});

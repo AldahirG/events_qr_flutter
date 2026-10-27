@@ -1,5 +1,7 @@
 // lib/core/api_client.dart
+import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -48,6 +50,12 @@ final dioProvider = Provider<Dio>((ref) {
     headers: {'Content-Type': 'application/json'},
     validateStatus: (status) => status != null && status >= 200 && status < 300,
   ));
+
+  (dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
+    final client = HttpClient();
+    client.badCertificateCallback = (cert, host, port) => true;
+    return client;
+  };
 
   dio.interceptors.add(_AuthInterceptor(
     dio: dio,

@@ -59,10 +59,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await _service.login(user, password);
       state = state.copyWith(isLoading: false, status: AuthStatus.authenticated);
     } on DioException catch (e) {
-      final raw = e.response?.data;
-      final msg = (raw is Map)
-          ? (raw['message'] ?? 'Credenciales incorrectas').toString()
-          : 'Credenciales incorrectas';
+      final String msg;
+      if (e.response != null) {
+        final raw = e.response?.data;
+        msg = (raw is Map)
+            ? (raw['message'] ?? 'Credenciales incorrectas').toString()
+            : 'Credenciales incorrectas';
+      } else {
+        msg = 'Error de conexión';
+      }
       state = state.copyWith(isLoading: false, error: msg);
     } catch (_) {
       state = state.copyWith(isLoading: false, error: 'Error de conexión');

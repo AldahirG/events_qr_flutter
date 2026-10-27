@@ -1,4 +1,5 @@
 // lib/screens/scanner_screen.dart
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -254,7 +255,22 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         _snack('Ya estaba confirmada', isWarning: true);
       }
     } catch (e) {
-      if (mounted) _snack('Error: ${e.toString()}', error: true);
+      if (!mounted) return;
+      setState(() => _scanned = false);
+      if (e is DioException) {
+        final status = e.response?.statusCode;
+        if (status == 404) {
+          _snack('QR no encontrado en el sistema', error: true);
+        } else if (e.response != null) {
+          final raw = e.response?.data;
+          final msg = (raw is Map) ? (raw['message'] ?? 'Error del servidor') : 'Error del servidor';
+          _snack(msg.toString(), error: true);
+        } else {
+          _snack('Sin conexión al servidor', error: true);
+        }
+      } else {
+        _snack('Error al procesar el QR', error: true);
+      }
     }
   }
 
